@@ -10,17 +10,35 @@ const ItemDetails = ({ route, navigation }) => {
 
   const handleClaim = () => {
     if (!user) {
-      Alert.alert('Error', 'You must be logged in to claim items.');
+      Alert.alert('Erreur', 'Vous devez être connecté pour réclamer des objets.');
       return;
     }
     updateItem(item.id, { status: 'returned' });
-    Alert.alert('Success', 'Item marked as returned!');
+    Alert.alert('Succès', 'Objet marqué comme retourné!');
     navigation.goBack();
   };
 
   const handleMarkFound = () => {
     updateItem(item.id, { status: 'returned' });
-    Alert.alert('Success', 'Item marked as found!');
+    Alert.alert('Succès', 'Objet marqué comme trouvé!');
+    navigation.goBack();
+  };
+
+  const handleMarkResolved = () => {
+    updateItem(item.id, { status: 'resolu' });
+    Alert.alert('Succès', 'Objet marqué comme résolu!');
+    navigation.goBack();
+  };
+
+  const handleMarkPending = () => {
+    updateItem(item.id, { status: 'en_attente' });
+    Alert.alert('Succès', 'Objet marqué comme en attente!');
+    navigation.goBack();
+  };
+
+  const handleMarkActive = () => {
+    updateItem(item.id, { status: 'actif' });
+    Alert.alert('Succès', 'Objet marqué comme actif!');
     navigation.goBack();
   };
 
@@ -33,39 +51,51 @@ const ItemDetails = ({ route, navigation }) => {
         <Image source={{ uri: item.photo }} style={styles.image} />
       ) : (
         <View style={styles.placeholder}>
-          <Text>No Image</Text>
+          <Text>Pas d'image</Text>
         </View>
       )}
       <Text style={styles.description}>{item.description}</Text>
-      <Text style={styles.details}>Type: {item.type === 'lost' ? 'Lost' : 'Found'}</Text>
+      <Text style={styles.details}>Type: {item.type === 'lost' ? 'Perdu' : 'Trouvé'}</Text>
       <Text style={styles.details}>Date: {new Date(item.date).toLocaleDateString()}</Text>
-      <Text style={styles.details}>Location: {item.location}</Text>
-      <Text style={styles.details}>Category: {item.category}</Text>
-      <Text style={styles.details}>Status: {item.status}</Text>
+      <Text style={styles.details}>Lieu: {item.location}</Text>
+      <Text style={styles.details}>Catégorie: {item.category}</Text>
+      <Text style={styles.details}>Statut: {item.status === 'actif' ? 'Actif' : item.status === 'en_attente' ? 'En attente' : item.status === 'resolu' ? 'Résolu' : 'Retourné'}</Text>
 
       {/* Placeholder for map */}
       <View style={styles.mapPlaceholder}>
-        <Text>Map Preview (Coming Soon)</Text>
+        <Text>Aperçu de la carte (Bientôt disponible)</Text>
       </View>
 
       {user ? (
         isOwner ? (
-          item.type === 'lost' && item.status === 'open' && (
-            <TouchableOpacity style={styles.foundButton} onPress={handleMarkFound}>
-              <Text style={styles.foundText}>I Found It!</Text>
-            </TouchableOpacity>
-          )
+          <View>
+            {item.status === 'actif' && (
+              <TouchableOpacity style={[styles.statusButton, { backgroundColor: '#ffc107', marginBottom: 10 }]} onPress={handleMarkPending}>
+                <Text style={styles.statusText}>Mettre en attente</Text>
+              </TouchableOpacity>
+            )}
+            {item.status === 'en_attente' && (
+              <TouchableOpacity style={[styles.statusButton, { backgroundColor: '#28a745', marginBottom: 10 }]} onPress={handleMarkActive}>
+                <Text style={styles.statusText}>Activer</Text>
+              </TouchableOpacity>
+            )}
+            {(item.status === 'actif' || item.status === 'en_attente') && (
+              <TouchableOpacity style={[styles.statusButton, { backgroundColor: '#dc3545' }]} onPress={handleMarkResolved}>
+                <Text style={styles.statusText}>Marquer comme résolu</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         ) : (
           item.status === 'open' && (
             <TouchableOpacity style={styles.claimButton} onPress={handleClaim}>
               <Text style={styles.claimText}>
-                {item.type === 'lost' ? 'This is mine!' : 'I found this'}
+                {item.type === 'lost' ? 'C\'est le mien!' : 'J\'ai trouvé ceci'}
               </Text>
             </TouchableOpacity>
           )
         )
       ) : (
-        <Text style={styles.loginPrompt}>Login to interact with this item.</Text>
+        <Text style={styles.loginPrompt}>Connectez-vous pour interagir avec cet objet.</Text>
       )}
     </View>
   );
@@ -123,6 +153,16 @@ const styles = StyleSheet.create({
   claimText: {
     color: '#fff',
     fontSize: 18,
+    fontWeight: 'bold',
+  },
+  statusButton: {
+    padding: 15,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  statusText: {
+    color: '#fff',
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });

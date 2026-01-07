@@ -2,26 +2,42 @@ import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 
 const ItemCard = ({ item, onPress }) => {
-  const { title, description, photo, date, location, category, type } = item;
+  const { title, description, photo, date, location, category, type, status } = item;
+
+  const getStatusStyle = (status) => {
+    switch (status) {
+      case 'actif':
+        return { color: '#2ecc71' };
+      case 'en_attente':
+        return { color: '#f1c40f' };
+      case 'resolu':
+        return { color: '#2ecc71' };
+      default:
+        return { color: '#666' };
+    }
+  };
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>
       <View style={styles.header}>
-        <Text style={styles.type}>{type === 'lost' ? '🔍 Lost' : '📦 Found'}</Text>
+        <Text style={styles.type}>{type === 'lost' ? '🔍 Perdu' : '📦 Trouvé'}</Text>
         <Text style={styles.category}>{category}</Text>
+        <Text style={[styles.status, getStatusStyle(status)]}>
+          {status === 'actif' ? '✅ Actif' : status === 'en_attente' ? '⏳ En attente' : status === 'resolu' ? '✅ Résolu' : '📋 ' + status}
+        </Text>
       </View>
       {photo ? (
         <Image source={{ uri: photo }} style={styles.image} />
       ) : (
         <View style={styles.placeholder}>
-          <Text>No Image</Text>
+          <Text>Pas d'image</Text>
         </View>
       )}
       <View style={styles.content}>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.description} numberOfLines={2}>{description}</Text>
         <Text style={styles.details}>Date: {new Date(date).toLocaleDateString()}</Text>
-        <Text style={styles.details}>Location: {location}</Text>
+        <Text style={styles.details}>Lieu: {location}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -51,6 +67,10 @@ const styles = StyleSheet.create({
   category: {
     fontSize: 14,
     color: '#666',
+  },
+  status: {
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   image: {
     width: '100%',

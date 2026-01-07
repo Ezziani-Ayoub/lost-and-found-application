@@ -9,53 +9,84 @@ const PostItem = ({ navigation }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
-  const [category, setCategory] = useState('other');
+  const [category, setCategory] = useState('autre');
+  const [status, setStatus] = useState('actif');
+  const [type, setType] = useState('lost');
 
-  const categories = ['keys', 'phone', 'clothes', 'wallet', 'other'];
+  const categories = ['cles', 'telephone', 'vêtements', 'portefeuille', 'autre'];
+  const categoryLabels = {
+    'cles': 'Clés',
+    'telephone': 'Téléphone', 
+    'vêtements': 'Vêtements',
+    'portefeuille': 'Portefeuille',
+    'autre': 'Autre'
+  };
+  const statuses = ['actif', 'en_attente', 'resolu'];
+  const types = ['lost', 'found'];
+  const typeLabels = {
+    'lost': 'Objet perdu',
+    'found': 'Objet trouvé'
+  };
 
   const handlePost = () => {
     if (!user) {
-      Alert.alert('Error', 'You must be logged in to post.');
+      Alert.alert('Erreur', 'Vous devez être connecté pour publier.');
       return;
     }
     if (!title || !description || !location) {
-      Alert.alert('Error', 'Please fill in all required fields.');
+      Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires.');
       return;
     }
 
     const newItem = {
-      type: 'lost', // Only lost items can be posted
+      type,
       title,
       description,
-      photo: null, // For now, no photo
-      date: new Date().toISOString().split('T')[0], // Today's date
+      photo: null,
+      date: new Date().toISOString().split('T')[0],
       location,
       category,
+      status,
     };
 
     addItem(newItem);
-    Alert.alert('Success', 'Lost item posted successfully!');
+    Alert.alert('Succès', 'Objet publié avec succès!');
     navigation.goBack();
   };
 
   if (!user) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>You must be logged in to post items.</Text>
+        <Text style={styles.title}>Vous devez être connecté pour publier des objets.</Text>
       </View>
     );
   }
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Post a Lost Item</Text>
+      <Text style={styles.title}>Publier une Annonce</Text>
 
-      <Text style={styles.label}>Title:</Text>
+      <Text style={styles.label}>Type d'annonce:</Text>
+      <View style={styles.typeRow}>
+        {types.map((typ) => (
+          <TouchableOpacity
+            key={typ}
+            style={[styles.typeButton, type === typ && styles.activeType]}
+            onPress={() => setType(typ)}
+          >
+            <Text style={[styles.typeText, type === typ && styles.activeTypeText]}>
+              {typeLabels[typ]}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <Text style={styles.label}>Titre:</Text>
       <TextInput
         style={styles.input}
         value={title}
         onChangeText={setTitle}
-        placeholder="e.g. Black wallet"
+        placeholder="ex: Portefeuille noir"
       />
 
       <Text style={styles.label}>Description:</Text>
@@ -63,19 +94,19 @@ const PostItem = ({ navigation }) => {
         style={styles.input}
         value={description}
         onChangeText={setDescription}
-        placeholder="Describe the item..."
+        placeholder="Décrivez l'objet..."
         multiline
       />
 
-      <Text style={styles.label}>Location:</Text>
+      <Text style={styles.label}>Lieu:</Text>
       <TextInput
         style={styles.input}
         value={location}
         onChangeText={setLocation}
-        placeholder="e.g. Campus Library"
+        placeholder="ex: Bibliothèque du Campus"
       />
 
-      <Text style={styles.label}>Category:</Text>
+      <Text style={styles.label}>Catégorie:</Text>
       <View style={styles.categoryRow}>
         {categories.map((cat) => (
           <TouchableOpacity
@@ -84,14 +115,29 @@ const PostItem = ({ navigation }) => {
             onPress={() => setCategory(cat)}
           >
             <Text style={[styles.categoryText, category === cat && styles.activeCategoryText]}>
-              {cat.charAt(0).toUpperCase() + cat.slice(1)}
+              {categoryLabels[cat]}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <Text style={styles.label}>Statut:</Text>
+      <View style={styles.statusRow}>
+        {statuses.map((stat) => (
+          <TouchableOpacity
+            key={stat}
+            style={[styles.statusButton, status === stat && styles.activeStatus]}
+            onPress={() => setStatus(stat)}
+          >
+            <Text style={[styles.statusText, status === stat && styles.activeStatusText]}>
+              {stat === 'actif' ? 'Actif' : stat === 'en_attente' ? 'En attente' : 'Résolu'}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
       <TouchableOpacity style={styles.postButton} onPress={handlePost}>
-        <Text style={styles.postText}>Post Lost Item</Text>
+        <Text style={styles.postText}>Publier l'Annonce</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -162,6 +208,26 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   activeCategoryText: {
+    color: '#fff',
+  },
+  statusRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 20,
+  },
+  statusButton: {
+    padding: 10,
+    margin: 5,
+    borderRadius: 5,
+    backgroundColor: '#ddd',
+  },
+  activeStatus: {
+    backgroundColor: '#007bff',
+  },
+  statusText: {
+    color: '#333',
+  },
+  activeStatusText: {
     color: '#fff',
   },
   postButton: {

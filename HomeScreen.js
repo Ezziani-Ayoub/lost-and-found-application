@@ -25,6 +25,10 @@ const HomeScreen = ({ navigation }) => {
       filtered = filtered.filter(item => item.category === filters.category);
     }
 
+    if (filters.status !== 'all') {
+      filtered = filtered.filter(item => item.status === filters.status);
+    }
+
     if (filters.searchText) {
       filtered = filtered.filter(item =>
         item.title.toLowerCase().includes(filters.searchText.toLowerCase()) ||
@@ -50,16 +54,21 @@ const HomeScreen = ({ navigation }) => {
       <View style={styles.topBar}>
         {user ? (
           <>
-            <Text style={styles.welcomeText}>Welcome, {user.name}!</Text>
-            <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-              <Text style={styles.logoutText}>Logout</Text>
-            </TouchableOpacity>
+            <Text style={styles.welcomeText}>Bienvenue, {user.name}!</Text>
+            <View style={styles.headerButtons}>
+              <TouchableOpacity style={styles.postHeaderButton} onPress={() => navigation.navigate('PostItem')}>
+                <Text style={styles.postHeaderText}>Publier</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.logoutButton} onPress={logout}>
+                <Text style={styles.logoutText}>Déconnexion</Text>
+              </TouchableOpacity>
+            </View>
           </>
         ) : (
           <>
-            <Text style={styles.bannerText}>Login to post lost items and interact with posts.</Text>
+            <Text style={styles.bannerText}>Connectez-vous pour publier des objets perdus et interagir avec les publications.</Text>
             <TouchableOpacity style={styles.loginButton} onPress={() => navigation.navigate('Login')}>
-              <Text style={styles.loginButtonText}>Login</Text>
+              <Text style={styles.loginButtonText}>Connexion</Text>
             </TouchableOpacity>
           </>
         )}
@@ -74,7 +83,7 @@ const HomeScreen = ({ navigation }) => {
       />
       {user && (
         <TouchableOpacity style={styles.postButton} onPress={() => navigation.navigate('PostItem')}>
-          <Text style={styles.postText}>+</Text>
+            <Text style={styles.postText}>+</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -121,6 +130,21 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   logoutText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  postHeaderButton: {
+    backgroundColor: '#28a745',
+    paddingHorizontal: 15,
+    paddingVertical: 5,
+    borderRadius: 5,
+    marginRight: 10,
+  },
+  postHeaderText: {
     color: '#fff',
     fontWeight: 'bold',
   },

@@ -28,11 +28,11 @@ function AppNavigator() {
         <Stack.Screen 
           name="Home" 
           component={HomeScreen} 
-          options={{ title: 'Lost & Found' }} 
+          options={{ title: 'Objets Perdus & Trouvés' }} 
         />
-        <Stack.Screen name="Login" component={Login} options={{ title: 'Login' }} />
-        <Stack.Screen name="PostItem" component={PostItem} options={{ title: 'Post Lost Item' }} />
-        <Stack.Screen name="ItemDetails" component={ItemDetails} options={{ title: 'Item Details' }} />
+        <Stack.Screen name="Login" component={Login} options={{ title: 'Connexion' }} />
+        <Stack.Screen name="PostItem" component={PostItem} options={{ title: 'Publier un Objet Perdu' }} />
+        <Stack.Screen name="ItemDetails" component={ItemDetails} options={{ title: 'Détails de l\'Objet' }} />
       </Stack.Navigator>
       <StatusBar style="auto" />
     </NavigationContainer>

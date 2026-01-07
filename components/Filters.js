@@ -5,19 +5,29 @@ const Filters = ({ onFilterChange }) => {
   const [searchText, setSearchText] = useState('');
   const [type, setType] = useState('all'); // all, lost, found
   const [category, setCategory] = useState('all');
+  const [status, setStatus] = useState('all');
   const [sortBy, setSortBy] = useState('newest'); // newest, distance
 
-  const categories = ['all', 'keys', 'phone', 'clothes', 'wallet', 'other'];
+  const categories = ['all', 'cles', 'telephone', 'vêtements', 'portefeuille', 'autre'];
+  const statuses = ['all', 'actif', 'en_attente', 'resolu'];
+  const categoryLabels = {
+    'all': 'Tous',
+    'cles': 'Clés',
+    'telephone': 'Téléphone', 
+    'vêtements': 'Vêtements',
+    'portefeuille': 'Portefeuille',
+    'autre': 'Autre'
+  };
 
   const applyFilters = () => {
-    onFilterChange({ searchText, type, category, sortBy });
+    onFilterChange({ searchText, type, category, status, sortBy });
   };
 
   return (
     <View style={styles.container}>
       <TextInput
         style={styles.searchInput}
-        placeholder="Search items..."
+        placeholder="Rechercher des objets..."
         value={searchText}
         onChangeText={setSearchText}
         onSubmitEditing={applyFilters}
@@ -27,22 +37,22 @@ const Filters = ({ onFilterChange }) => {
           style={[styles.button, type === 'all' && styles.activeButton]}
           onPress={() => setType('all')}
         >
-          <Text style={[styles.buttonText, type === 'all' && styles.activeText]}>All</Text>
+          <Text style={[styles.buttonText, type === 'all' && styles.activeText]}>Tous</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.button, type === 'lost' && styles.activeButton]}
           onPress={() => setType('lost')}
         >
-          <Text style={[styles.buttonText, type === 'lost' && styles.activeText]}>Lost</Text>
+          <Text style={[styles.buttonText, type === 'lost' && styles.activeText]}>Perdu</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.button, type === 'found' && styles.activeButton]}
           onPress={() => setType('found')}
         >
-          <Text style={[styles.buttonText, type === 'found' && styles.activeText]}>Found</Text>
+          <Text style={[styles.buttonText, type === 'found' && styles.activeText]}>Trouvé</Text>
         </TouchableOpacity>
       </View>
-      <Text style={styles.label}>Category:</Text>
+      <Text style={styles.label}>Catégorie:</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryRow}>
         {categories.map((cat) => (
           <TouchableOpacity
@@ -51,18 +61,32 @@ const Filters = ({ onFilterChange }) => {
             onPress={() => setCategory(cat)}
           >
             <Text style={[styles.buttonText, category === cat && styles.activeText]}>
-              {cat.charAt(0).toUpperCase() + cat.slice(1)}
+              {categoryLabels[cat]}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      <Text style={styles.label}>Statut:</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statusRow}>
+        {statuses.map((stat) => (
+          <TouchableOpacity
+            key={stat}
+            style={[styles.button, status === stat && styles.activeButton]}
+            onPress={() => setStatus(stat)}
+          >
+            <Text style={[styles.buttonText, status === stat && styles.activeText]}>
+              {stat === 'all' ? 'Tous' : stat === 'actif' ? 'Actif' : stat === 'en_attente' ? 'En attente' : 'Résolu'}
             </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
       <View style={styles.filterRow}>
-        <Text style={styles.label}>Sort by:</Text>
+        <Text style={styles.label}>Trier par:</Text>
         <TouchableOpacity
           style={[styles.button, sortBy === 'newest' && styles.activeButton]}
           onPress={() => setSortBy('newest')}
         >
-          <Text style={[styles.buttonText, sortBy === 'newest' && styles.activeText]}>Newest</Text>
+          <Text style={[styles.buttonText, sortBy === 'newest' && styles.activeText]}>Plus récent</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.button, sortBy === 'distance' && styles.activeButton]}
@@ -72,7 +96,7 @@ const Filters = ({ onFilterChange }) => {
         </TouchableOpacity>
       </View>
       <TouchableOpacity style={styles.applyButton} onPress={applyFilters}>
-        <Text style={styles.applyText}>Apply Filters</Text>
+        <Text style={styles.applyText}>Appliquer les filtres</Text>
       </TouchableOpacity>
     </View>
   );
@@ -97,6 +121,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   categoryRow: {
+    marginBottom: 10,
+  },
+  statusRow: {
     marginBottom: 10,
   },
   button: {

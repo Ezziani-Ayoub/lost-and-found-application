@@ -11,11 +11,11 @@ const Login = ({ navigation }) => {
 
   const handleSubmit = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields.');
+      Alert.alert('Erreur', 'Veuillez remplir tous les champs.');
       return;
     }
     if (!isLogin && !name) {
-      Alert.alert('Error', 'Please enter your name.');
+      Alert.alert('Erreur', 'Veuillez entrer votre nom.');
       return;
     }
 
@@ -27,18 +27,18 @@ const Login = ({ navigation }) => {
       }
       // Navigation will handle automatically via auth state
     } catch (error) {
-      Alert.alert('Error', 'Authentication failed. Please try again.');
+      Alert.alert('Erreur', 'L\'authentification a échoué. Veuillez réessayer.');
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{isLogin ? 'Login' : 'Sign Up'}</Text>
+      <Text style={styles.title}>{isLogin ? 'Connexion' : 'Inscription'}</Text>
 
       {!isLogin && (
         <TextInput
           style={styles.input}
-          placeholder="Name"
+          placeholder="Nom"
           value={name}
           onChangeText={setName}
         />
@@ -55,19 +55,19 @@ const Login = ({ navigation }) => {
 
       <TextInput
         style={styles.input}
-        placeholder="Password"
+        placeholder="Mot de passe"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
 
       <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-        <Text style={styles.buttonText}>{isLogin ? 'Login' : 'Sign Up'}</Text>
+        <Text style={styles.buttonText}>{isLogin ? 'Connexion' : 'Inscription'}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
         <Text style={styles.switchText}>
-          {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Login'}
+          {isLogin ? "Pas de compte ? S'inscrire" : 'Déjà un compte ? Se connecter'}
         </Text>
       </TouchableOpacity>
     </View>
