@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { View, FlatList, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
 import ItemCard from './components/ItemCard';
 import Filters from './components/Filters';
 import { useItems } from './ItemsContext';
@@ -49,6 +49,28 @@ const HomeScreen = ({ navigation }) => {
     navigation.navigate('ItemDetails', { item });
   };
 
+  const handleContactPress = (item) => {
+    if (!user) {
+      Alert.alert('Erreur', 'Vous devez être connecté pour contacter le propriétaire.');
+      return;
+    }
+
+    if (item.userId === user.id) {
+       Alert.alert('Info', 'Ceci est votre propre objet.');
+       return;
+    }
+
+    try {
+      navigation.navigate('Chat', {
+        item,
+        otherUserId: item.userId,
+      });
+    } catch (error) {
+      console.error('Erreur navigation chat:', error);
+      Alert.alert('Erreur', 'Impossible d\'ouvrir le chat.');
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.topBar}>
@@ -78,7 +100,12 @@ const HomeScreen = ({ navigation }) => {
         data={filteredItems}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <ItemCard item={item} onPress={() => handleItemPress(item)} />
+          <ItemCard 
+            item={item} 
+            onPress={() => handleItemPress(item)} 
+            onContact={() => handleContactPress(item)}
+            showContact={!!user && item.type === 'lost' && item.userId !== user?.id}
+          />
         )}
       />
       {user && (

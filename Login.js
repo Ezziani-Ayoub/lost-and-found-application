@@ -25,7 +25,8 @@ const Login = ({ navigation }) => {
       } else {
         await signup(email, password, name);
       }
-      // Navigation will handle automatically via auth state
+      // Rediriger vers la page d'accueil après connexion réussie
+      navigation.navigate('Home');
     } catch (error) {
       Alert.alert('Erreur', 'L\'authentification a échoué. Veuillez réessayer.');
     }

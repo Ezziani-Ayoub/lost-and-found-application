@@ -8,6 +8,7 @@ import HomeScreen from './HomeScreen';
 import PostItem from './PostItem';
 import ItemDetails from './ItemDetails';
 import Login from './Login';
+import ChatScreen from './ChatScreen';
 
 const Stack = createStackNavigator();
 
@@ -33,6 +34,7 @@ function AppNavigator() {
         <Stack.Screen name="Login" component={Login} options={{ title: 'Connexion' }} />
         <Stack.Screen name="PostItem" component={PostItem} options={{ title: 'Publier un Objet Perdu' }} />
         <Stack.Screen name="ItemDetails" component={ItemDetails} options={{ title: 'Détails de l\'Objet' }} />
+        <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
       </Stack.Navigator>
       <StatusBar style="auto" />
     </NavigationContainer>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 
-const ItemCard = ({ item, onPress }) => {
+const ItemCard = ({ item, onPress, onContact, showContact }) => {
   const { title, description, photo, date, location, category, type, status } = item;
 
   const getStatusStyle = (status) => {
@@ -38,6 +38,18 @@ const ItemCard = ({ item, onPress }) => {
         <Text style={styles.description} numberOfLines={2}>{description}</Text>
         <Text style={styles.details}>Date: {new Date(date).toLocaleDateString()}</Text>
         <Text style={styles.details}>Lieu: {location}</Text>
+
+        {showContact && (
+          <TouchableOpacity
+            style={styles.contactButton}
+            onPress={(e) => {
+              e.stopPropagation(); // Prevent triggering card onPress
+              onContact();
+            }}
+          >
+            <Text style={styles.contactButtonText}>Contacter le propriétaire</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -101,6 +113,19 @@ const styles = StyleSheet.create({
   details: {
     fontSize: 12,
     color: '#999',
+  },
+  contactButton: {
+    backgroundColor: '#007bff',
+    padding: 8,
+    borderRadius: 5,
+    marginTop: 10,
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+  },
+  contactButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
 });
 
