@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Platform, KeyboardAvoidingView } from 'react-native';
 import { useItems } from './ItemsContext';
 import { useAuth } from './AuthContext';
 
@@ -13,20 +13,18 @@ const PostItem = ({ navigation }) => {
   const [status, setStatus] = useState('actif');
   const [type, setType] = useState('lost');
 
-  const categories = ['cles', 'telephone', 'vêtements', 'portefeuille', 'autre'];
-  const categoryLabels = {
-    'cles': 'Clés',
-    'telephone': 'Téléphone', 
-    'vêtements': 'Vêtements',
-    'portefeuille': 'Portefeuille',
-    'autre': 'Autre'
-  };
-  const statuses = ['actif', 'en_attente', 'resolu'];
-  const types = ['lost', 'found'];
-  const typeLabels = {
-    'lost': 'Objet perdu',
-    'found': 'Objet trouvé'
-  };
+  // Data
+  const categories = [
+    { id: 'cles', label: 'Clés', icon: '🔑' },
+    { id: 'telephone', label: 'Téléphone', icon: '📱' },
+    { id: 'vêtements', label: 'Vêtements', icon: '👕' },
+    { id: 'portefeuille', label: 'Portefeuille', icon: '👛' },
+    { id: 'autre', label: 'Autre', icon: '📦' },
+  ];
+  const types = [
+    { id: 'lost', label: 'Objet Perdu', icon: '🔍', color: '#e74c3c' },
+    { id: 'found', label: 'Objet Trouvé', icon: '📦', color: '#3498db' },
+  ];
 
   const handlePost = () => {
     if (!user) {
@@ -34,7 +32,7 @@ const PostItem = ({ navigation }) => {
       return;
     }
     if (!title || !description || !location) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires.');
+      Alert.alert('Incomplet', 'Veuillez remplir le titre, la description et le lieu.');
       return;
     }
 
@@ -42,7 +40,7 @@ const PostItem = ({ navigation }) => {
       type,
       title,
       description,
-      photo: null,
+      photo: null, // Photo upload not implemented in UI yet
       date: new Date().toISOString().split('T')[0],
       location,
       category,
@@ -50,196 +48,224 @@ const PostItem = ({ navigation }) => {
     };
 
     addItem(newItem);
-    Alert.alert('Succès', 'Objet publié avec succès!');
+    Alert.alert('Succès', 'Votre annonce a été publiée!');
     navigation.goBack();
   };
 
-  if (!user) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.title}>Vous devez être connecté pour publier des objets.</Text>
-      </View>
-    );
-  }
+  if (!user) return null; // Should not happen due to navigation guards
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Publier une Annonce</Text>
+    <View style={styles.mainContainer}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+        <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
 
-      <Text style={styles.label}>Type d'annonce:</Text>
-      <View style={styles.typeRow}>
-        {types.map((typ) => (
-          <TouchableOpacity
-            key={typ}
-            style={[styles.typeButton, type === typ && styles.activeType]}
-            onPress={() => setType(typ)}
-          >
-            <Text style={[styles.typeText, type === typ && styles.activeTypeText]}>
-              {typeLabels[typ]}
-            </Text>
-          </TouchableOpacity>
-        ))}
+          <Text style={styles.headerTitle}>Créer une Annonce</Text>
+          <Text style={styles.headerSubtitle}>Dites-nous ce que vous avez perdu ou trouvé.</Text>
+
+          {/* Type Selection */}
+          <Text style={styles.sectionLabel}>Type d'annonce</Text>
+          <View style={styles.typeRow}>
+            {types.map((t) => (
+              <TouchableOpacity
+                key={t.id}
+                style={[
+                  styles.typeCard,
+                  type === t.id && { backgroundColor: t.color, borderColor: t.color },
+                ]}
+                onPress={() => setType(t.id)}
+              >
+                <Text style={styles.typeIcon}>{t.icon}</Text>
+                <Text style={[styles.typeText, type === t.id && styles.activeTypeText]}>
+                  {t.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Details Form */}
+          <Text style={styles.sectionLabel}>Détails</Text>
+
+          <TextInput
+            style={styles.input}
+            value={title}
+            onChangeText={setTitle}
+            placeholder="Titre (ex: iPhone 13 Noir)"
+            placeholderTextColor="#95a5a6"
+          />
+
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Description détaillée..."
+            placeholderTextColor="#95a5a6"
+            multiline
+            textAlignVertical="top"
+          />
+
+          <TextInput
+            style={styles.input}
+            value={location}
+            onChangeText={setLocation}
+            placeholder="Lieu (ex: Cafétéria)"
+            placeholderTextColor="#95a5a6"
+          />
+
+          {/* Category Selection */}
+          <Text style={styles.sectionLabel}>Catégorie</Text>
+          <View style={styles.chipsContainer}>
+            {categories.map((cat) => (
+              <TouchableOpacity
+                key={cat.id}
+                style={[styles.chip, category === cat.id && styles.activeChip]}
+                onPress={() => setCategory(cat.id)}
+              >
+                <Text style={styles.chipIcon}>{cat.icon}</Text>
+                <Text style={[styles.chipText, category === cat.id && styles.activeChipText]}>
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.submitButton} onPress={handlePost}>
+          <Text style={styles.submitButtonText}>Publier Maintenant</Text>
+        </TouchableOpacity>
       </View>
-
-      <Text style={styles.label}>Titre:</Text>
-      <TextInput
-        style={styles.input}
-        value={title}
-        onChangeText={setTitle}
-        placeholder="ex: Portefeuille noir"
-      />
-
-      <Text style={styles.label}>Description:</Text>
-      <TextInput
-        style={styles.input}
-        value={description}
-        onChangeText={setDescription}
-        placeholder="Décrivez l'objet..."
-        multiline
-      />
-
-      <Text style={styles.label}>Lieu:</Text>
-      <TextInput
-        style={styles.input}
-        value={location}
-        onChangeText={setLocation}
-        placeholder="ex: Bibliothèque du Campus"
-      />
-
-      <Text style={styles.label}>Catégorie:</Text>
-      <View style={styles.categoryRow}>
-        {categories.map((cat) => (
-          <TouchableOpacity
-            key={cat}
-            style={[styles.categoryButton, category === cat && styles.activeCategory]}
-            onPress={() => setCategory(cat)}
-          >
-            <Text style={[styles.categoryText, category === cat && styles.activeCategoryText]}>
-              {categoryLabels[cat]}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <Text style={styles.label}>Statut:</Text>
-      <View style={styles.statusRow}>
-        {statuses.map((stat) => (
-          <TouchableOpacity
-            key={stat}
-            style={[styles.statusButton, status === stat && styles.activeStatus]}
-            onPress={() => setStatus(stat)}
-          >
-            <Text style={[styles.statusText, status === stat && styles.activeStatusText]}>
-              {stat === 'actif' ? 'Actif' : stat === 'en_attente' ? 'En attente' : 'Résolu'}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <TouchableOpacity style={styles.postButton} onPress={handlePost}>
-        <Text style={styles.postText}>Publier l'Annonce</Text>
-      </TouchableOpacity>
-    </ScrollView>
+    </View>
   );
-};;
+};
 
 const styles = StyleSheet.create({
-  container: {
+  mainContainer: {
     flex: 1,
-    padding: 20,
     backgroundColor: '#fff',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
+  container: {
+    flex: 1,
   },
-  label: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginTop: 10,
+  contentContainer: {
+    padding: 20,
+    paddingBottom: 100, // Space for footer
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#2c3e50',
     marginBottom: 5,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#7f8c8d',
+    marginBottom: 30,
+  },
+  sectionLabel: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#34495e',
+    marginBottom: 15,
+    marginTop: 10,
   },
   typeRow: {
     flexDirection: 'row',
-    marginBottom: 10,
+    marginBottom: 20,
   },
-  typeButton: {
+  typeCard: {
     flex: 1,
-    padding: 10,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 15,
+    padding: 15,
     marginHorizontal: 5,
-    borderRadius: 5,
-    backgroundColor: '#ddd',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
-  activeType: {
-    backgroundColor: '#007bff',
+  typeIcon: {
+    fontSize: 32,
+    marginBottom: 10,
   },
   typeText: {
     fontSize: 16,
-    color: '#333',
+    fontWeight: '600',
+    color: '#7f8c8d',
   },
   activeTypeText: {
     color: '#fff',
   },
   input: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 15,
+    fontSize: 16,
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    padding: 10,
+    borderColor: '#e9ecef',
+    color: '#2c3e50',
+  },
+  textArea: {
+    height: 120,
+  },
+  chipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f1f3f5',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 25,
+    marginRight: 10,
     marginBottom: 10,
   },
-  categoryRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 20,
+  activeChip: {
+    backgroundColor: '#3498db',
   },
-  categoryButton: {
-    padding: 10,
-    margin: 5,
-    borderRadius: 5,
-    backgroundColor: '#ddd',
+  chipIcon: {
+    marginRight: 5,
+    fontSize: 16,
   },
-  activeCategory: {
-    backgroundColor: '#007bff',
+  chipText: {
+    color: '#7f8c8d',
+    fontWeight: '600',
   },
-  categoryText: {
-    color: '#333',
-  },
-  activeCategoryText: {
+  activeChipText: {
     color: '#fff',
   },
-  statusRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 20,
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f1f1',
   },
-  statusButton: {
-    padding: 10,
-    margin: 5,
-    borderRadius: 5,
-    backgroundColor: '#ddd',
-  },
-  activeStatus: {
-    backgroundColor: '#007bff',
-  },
-  statusText: {
-    color: '#333',
-  },
-  activeStatusText: {
-    color: '#fff',
-  },
-  postButton: {
-    backgroundColor: '#28a745',
-    padding: 15,
-    borderRadius: 5,
+  submitButton: {
+    backgroundColor: '#2ecc71', // Green for success/action
+    paddingVertical: 18,
+    borderRadius: 15,
     alignItems: 'center',
+    shadowColor: '#2ecc71',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
-  postText: {
+  submitButtonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+    letterSpacing: 0.5,
   },
 });
 

@@ -1,102 +1,48 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 
-const Filters = ({ onFilterChange }) => {
-  const [searchText, setSearchText] = useState('');
-  const [type, setType] = useState('all'); // all, lost, found
-  const [category, setCategory] = useState('all');
-  const [status, setStatus] = useState('all');
-  const [sortBy, setSortBy] = useState('newest'); // newest, distance
+const Filters = ({ type, setType, category, setCategory, onApply }) => {
+  const types = [
+    { id: 'all', label: 'Tout' },
+    { id: 'lost', label: 'Perdu' },
+    { id: 'found', label: 'Trouvé' },
+  ];
 
-  const categories = ['all', 'cles', 'telephone', 'vêtements', 'portefeuille', 'autre'];
-  const statuses = ['all', 'actif', 'en_attente', 'resolu'];
-  const categoryLabels = {
-    'all': 'Tous',
-    'cles': 'Clés',
-    'telephone': 'Téléphone', 
-    'vêtements': 'Vêtements',
-    'portefeuille': 'Portefeuille',
-    'autre': 'Autre'
-  };
+  const categories = [
+    { id: 'all', label: 'Tout' },
+    { id: 'cles', label: 'Clés' },
+    { id: 'telephone', label: 'Téléphone' },
+    { id: 'vêtements', label: 'Vêtements' },
+    { id: 'portefeuille', label: 'Portefeuille' },
+    { id: 'autre', label: 'Autre' },
+  ];
 
-  const applyFilters = () => {
-    onFilterChange({ searchText, type, category, status, sortBy });
-  };
+  const renderPill = (item, current, setter) => (
+    <TouchableOpacity
+      key={item.id}
+      style={[styles.pill, current === item.id && styles.activePill]}
+      onPress={() => {
+        setter(item.id);
+      }}
+    >
+      <Text style={[styles.pillText, current === item.id && styles.activePillText]}>
+        {item.label}
+      </Text>
+    </TouchableOpacity>
+  );
 
   return (
     <View style={styles.container}>
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Rechercher des objets..."
-        value={searchText}
-        onChangeText={setSearchText}
-        onSubmitEditing={applyFilters}
-      />
-      <View style={styles.filterRow}>
-        <TouchableOpacity
-          style={[styles.button, type === 'all' && styles.activeButton]}
-          onPress={() => setType('all')}
-        >
-          <Text style={[styles.buttonText, type === 'all' && styles.activeText]}>Tous</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.button, type === 'lost' && styles.activeButton]}
-          onPress={() => setType('lost')}
-        >
-          <Text style={[styles.buttonText, type === 'lost' && styles.activeText]}>Perdu</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.button, type === 'found' && styles.activeButton]}
-          onPress={() => setType('found')}
-        >
-          <Text style={[styles.buttonText, type === 'found' && styles.activeText]}>Trouvé</Text>
-        </TouchableOpacity>
-      </View>
-      <Text style={styles.label}>Catégorie:</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryRow}>
-        {categories.map((cat) => (
-          <TouchableOpacity
-            key={cat}
-            style={[styles.button, category === cat && styles.activeButton]}
-            onPress={() => setCategory(cat)}
-          >
-            <Text style={[styles.buttonText, category === cat && styles.activeText]}>
-              {categoryLabels[cat]}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollRow}>
+        {types.map(t => renderPill(t, type, setType))}
       </ScrollView>
-      <Text style={styles.label}>Statut:</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statusRow}>
-        {statuses.map((stat) => (
-          <TouchableOpacity
-            key={stat}
-            style={[styles.button, status === stat && styles.activeButton]}
-            onPress={() => setStatus(stat)}
-          >
-            <Text style={[styles.buttonText, status === stat && styles.activeText]}>
-              {stat === 'all' ? 'Tous' : stat === 'actif' ? 'Actif' : stat === 'en_attente' ? 'En attente' : 'Résolu'}
-            </Text>
-          </TouchableOpacity>
-        ))}
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollRow}>
+        {categories.map(c => renderPill(c, category, setCategory))}
       </ScrollView>
-      <View style={styles.filterRow}>
-        <Text style={styles.label}>Trier par:</Text>
-        <TouchableOpacity
-          style={[styles.button, sortBy === 'newest' && styles.activeButton]}
-          onPress={() => setSortBy('newest')}
-        >
-          <Text style={[styles.buttonText, sortBy === 'newest' && styles.activeText]}>Plus récent</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.button, sortBy === 'distance' && styles.activeButton]}
-          onPress={() => setSortBy('distance')}
-        >
-          <Text style={[styles.buttonText, sortBy === 'distance' && styles.activeText]}>Distance</Text>
-        </TouchableOpacity>
-      </View>
-      <TouchableOpacity style={styles.applyButton} onPress={applyFilters}>
-        <Text style={styles.applyText}>Appliquer les filtres</Text>
+
+      <TouchableOpacity style={styles.applyButton} onPress={onApply}>
+        <Text style={styles.applyButtonText}>Appliquer Filtres</Text>
       </TouchableOpacity>
     </View>
   );
@@ -104,57 +50,49 @@ const Filters = ({ onFilterChange }) => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 10,
-    backgroundColor: '#f9f9f9',
+    paddingVertical: 10,
+    backgroundColor: '#fff',
   },
-  searchInput: {
-    height: 40,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
+  scrollRow: {
+    paddingHorizontal: 15,
     marginBottom: 10,
-  },
-  filterRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
   },
-  categoryRow: {
-    marginBottom: 10,
-  },
-  statusRow: {
-    marginBottom: 10,
-  },
-  button: {
-    padding: 10,
+  pill: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f1f3f5',
     marginRight: 10,
-    borderRadius: 5,
-    backgroundColor: '#ddd',
   },
-  activeButton: {
-    backgroundColor: '#007bff',
+  activePill: {
+    backgroundColor: '#3498db',
+    shadowColor: '#3498db',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  buttonText: {
-    color: '#333',
+  pillText: {
+    color: '#7f8c8d',
+    fontWeight: '600',
   },
-  activeText: {
+  activePillText: {
     color: '#fff',
-  },
-  label: {
-    marginRight: 10,
-    fontSize: 16,
     fontWeight: 'bold',
   },
   applyButton: {
-    backgroundColor: '#28a745',
-    padding: 10,
-    borderRadius: 5,
+    marginHorizontal: 15,
+    backgroundColor: '#2c3e50',
+    padding: 12,
+    borderRadius: 10,
     alignItems: 'center',
+    marginBottom: 5,
   },
-  applyText: {
+  applyButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontWeight: 'bold',
+    fontSize: 14,
   },
 });
 

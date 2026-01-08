@@ -1,146 +1,155 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, ScrollView, Dimensions, Platform } from 'react-native';
 import { useItems } from './ItemsContext';
 import { useAuth } from './AuthContext';
+import { StatusBar } from 'expo-status-bar';
+
+const { width } = Dimensions.get('window');
 
 const ItemDetails = ({ route, navigation }) => {
   const { item } = route.params;
   const { updateItem } = useItems();
   const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
 
-  const handleClaim = () => {
-    if (!user) {
-      Alert.alert('Erreur', 'Vous devez être connecté pour réclamer des objets.');
-      return;
-    }
-    updateItem(item.id, { status: 'returned' });
-    Alert.alert('Succès', 'Objet marqué comme retourné!');
-    navigation.goBack();
-  };
+  const isOwner = user && item.userId === user.id;
 
-  const handleMarkFound = () => {
-    updateItem(item.id, { status: 'returned' });
-    Alert.alert('Succès', 'Objet marqué comme trouvé!');
-    navigation.goBack();
-  };
-
-  const handleMarkResolved = () => {
-    updateItem(item.id, { status: 'resolu' });
-    Alert.alert('Succès', 'Objet marqué comme résolu!');
-    navigation.goBack();
-  };
-
-  const handleMarkPending = () => {
-    updateItem(item.id, { status: 'en_attente' });
-    Alert.alert('Succès', 'Objet marqué comme en attente!');
-    navigation.goBack();
-  };
-
-  const handleMarkActive = () => {
-    updateItem(item.id, { status: 'actif' });
-    Alert.alert('Succès', 'Objet marqué comme actif!');
+  const handleAction = (action, statusLabel) => {
+    updateItem(item.id, { status: action });
+    Alert.alert('Succès', `Objet marqué comme ${statusLabel}!`);
     navigation.goBack();
   };
 
   const handleChat = () => {
     if (!user) {
-      Alert.alert('Erreur', 'Vous devez être connecté pour discuter.');
+      Alert.alert('Connexion requise', 'Connectez-vous pour contacter le propriétaire.');
       return;
     }
 
     try {
-      // Déterminer l'ID de l'autre utilisateur
-      const otherUserId = user.id === item.userId 
-        ? null // Propriétaire visualisant - sera défini quand quelqu'un envoie un message
-        : item.userId; // Non-propriétaire visualisant - le propriétaire est l'autre participant
-
+      const otherUserId = isOwner ? null : item.userId;
       navigation.navigate('Chat', {
         item,
         otherUserId: otherUserId || 'pending',
       });
     } catch (error) {
-      console.error('Erreur lors de la navigation vers le chat:', error);
-      Alert.alert('Erreur', 'Impossible d\'ouvrir le chat. Veuillez réessayer.');
+      Alert.alert('Erreur', 'Impossible d\'ouvrir le chat.');
     }
   };
 
-  const isOwner = user && item.userId === user.id;
-
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{item.title}</Text>
-      {item.photo ? (
-        <Image source={{ uri: item.photo }} style={styles.image} />
-      ) : (
-        <View style={styles.placeholder}>
-          <Text>Pas d'image</Text>
-        </View>
-      )}
-      <Text style={styles.description}>{item.description}</Text>
-      <Text style={styles.details}>Type: {item.type === 'lost' ? 'Perdu' : 'Trouvé'}</Text>
-      <Text style={styles.details}>Date: {new Date(item.date).toLocaleDateString()}</Text>
-      <Text style={styles.details}>Lieu: {item.location}</Text>
-      <Text style={styles.details}>Catégorie: {item.category}</Text>
-      <Text style={styles.details}>Statut: {item.status === 'actif' ? 'Actif' : item.status === 'en_attente' ? 'En attente' : item.status === 'resolu' ? 'Résolu' : 'Retourné'}</Text>
+      <StatusBar style="light" />
 
-      {/* Placeholder for map */}
-      <View style={styles.mapPlaceholder}>
-        <Text>Aperçu de la carte (Bientôt disponible)</Text>
+      {/* Immersive Header Image */}
+      <View style={styles.imageContainer}>
+        {item.photo ? (
+          <Image source={{ uri: item.photo }} style={styles.image} resizeMode="cover" />
+        ) : (
+          <View style={[styles.placeholder, { backgroundColor: item.type === 'lost' ? '#e74c3c' : '#3498db' }]}>
+            <Text style={styles.placeholderIcon}>{item.type === 'lost' ? '🔍' : '📦'}</Text>
+          </View>
+        )}
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Text style={styles.backButtonText}>←</Text>
+        </TouchableOpacity>
+
+        {/* Owner Status Menu Button */}
+        {isOwner && (
+          <View style={styles.menuWrapper}>
+            <TouchableOpacity
+              style={styles.statusMenuButton}
+              onPress={() => setMenuVisible(!menuVisible)}
+            >
+              <Text style={styles.statusMenuText}>
+                {item.status === 'actif' ? '🟢 Actif' : item.status === 'en_attente' ? '🟡 En Pause' : '🔴 Remis'}
+              </Text>
+              <Text style={styles.chevron}>▼</Text>
+            </TouchableOpacity>
+
+            {menuVisible && (
+              <View style={styles.dropdown}>
+                <TouchableOpacity style={styles.dropdownItem} onPress={() => { setMenuVisible(false); handleAction('actif', 'Actif'); }}>
+                  <Text style={styles.dropdownText}>🟢 Actif</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.dropdownItem} onPress={() => { setMenuVisible(false); handleAction('en_attente', 'En Pause'); }}>
+                  <Text style={styles.dropdownText}>🟡 En Pause</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.dropdownItem} onPress={() => { setMenuVisible(false); handleAction('returned', 'Remis'); }}>
+                  <Text style={styles.dropdownText}>🔴 Remis</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
-      {/* Debug info */}
-      {__DEV__ && (
-        <View style={{ padding: 10, backgroundColor: '#f0f0f0', marginBottom: 10 }}>
-          <Text style={{ fontSize: 12 }}>
-            Debug: user={user ? 'connecté (' + user.id + ')' : 'non connecté'}, 
-            status={item.status}, 
-            isOwner={isOwner ? 'oui' : 'non'}
-          </Text>
+      {/* Content Sheet */}
+      <ScrollView
+        style={styles.sheetContainer}
+        contentContainerStyle={styles.sheetContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.handleBar} />
+
+        <View style={styles.headerRow}>
+          <View style={[styles.badge, { backgroundColor: item.type === 'lost' ? '#e74c3c' : '#3498db' }]}>
+            <Text style={styles.badgeText}>{item.type === 'lost' ? 'PERDU' : 'TROUVÉ'}</Text>
+          </View>
+          <Text style={styles.date}>{new Date(item.date).toLocaleDateString()}</Text>
         </View>
-      )}
 
-      {user ? (
-        <>
-          {/* Bouton Chat - disponible pour tous les utilisateurs connectés */}
-          {(item.status === 'actif' || item.status === 'en_attente' || item.status === 'open') ? (
-            <TouchableOpacity style={styles.chatButton} onPress={handleChat}>
-              <Text style={styles.chatButtonText}>
-                {isOwner ? 'Voir les messages' : 'Contacter le propriétaire'}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
+        <Text style={styles.title}>{item.title}</Text>
 
-          {isOwner ? (
-            <View>
-              {item.status === 'actif' && (
-                <TouchableOpacity style={[styles.statusButton, { backgroundColor: '#ffc107', marginTop: 10 }]} onPress={handleMarkPending}>
-                  <Text style={styles.statusText}>Mettre en attente</Text>
+        <View style={styles.locationRow}>
+          <Text style={styles.locationIcon}>📍</Text>
+          <Text style={styles.locationText}>{item.location}</Text>
+        </View>
+
+        <View style={styles.divider} />
+
+        <Text style={styles.sectionTitle}>Description</Text>
+        <Text style={styles.description}>{item.description}</Text>
+
+        <View style={styles.divider} />
+
+        <Text style={styles.sectionTitle}>Position Approximative</Text>
+        <View style={styles.mapPlaceholder}>
+          <Text style={styles.mapText}>🗺️ Carte indisponible</Text>
+        </View>
+
+        {/* Action Buttons */}
+        <View style={styles.actionContainer}>
+          {user ? (
+            <>
+              {/* Only show Contact button for non-owners */}
+              {!isOwner && (
+                <TouchableOpacity style={styles.primaryButton} onPress={handleChat}>
+                  <Text style={styles.primaryButtonText}>
+                    Contacter le propriétaire
+                  </Text>
                 </TouchableOpacity>
               )}
-              {item.status === 'en_attente' && (
-                <TouchableOpacity style={[styles.statusButton, { backgroundColor: '#28a745', marginTop: 10 }]} onPress={handleMarkActive}>
-                  <Text style={styles.statusText}>Activer</Text>
+
+              {isOwner && (
+                <TouchableOpacity style={styles.primaryButton} onPress={handleChat}>
+                  <Text style={styles.primaryButtonText}>
+                    Voir les Messages
+                  </Text>
                 </TouchableOpacity>
               )}
-              {(item.status === 'actif' || item.status === 'en_attente') && (
-                <TouchableOpacity style={[styles.statusButton, { backgroundColor: '#dc3545', marginTop: 10 }]} onPress={handleMarkResolved}>
-                  <Text style={styles.statusText}>Marquer comme résolu</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            </>
           ) : (
-            item.status === 'open' && (
-              <TouchableOpacity style={[styles.claimButton, { marginTop: 10 }]} onPress={handleClaim}>
-                <Text style={styles.claimText}>
-                  {item.type === 'lost' ? 'C\'est le mien!' : 'J\'ai trouvé ceci'}
-                </Text>
-              </TouchableOpacity>
-            )
+            <View style={styles.loginPromptContainer}>
+              <Text style={styles.loginPrompt}>Connectez-vous pour interagir</Text>
+            </View>
           )}
-        </>
-      ) : (
-        <Text style={styles.loginPrompt}>Connectez-vous pour interagir avec cet objet.</Text>
-      )}
+        </View>
+
+        {/* Fill safe area at bottom */}
+        <View style={{ height: 40 }} />
+      </ScrollView>
     </View>
   );
 };
@@ -148,83 +157,245 @@ const ItemDetails = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
     backgroundColor: '#fff',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
+  imageContainer: {
+    height: 300,
+    width: '100%',
+    position: 'relative',
   },
   image: {
     width: '100%',
-    height: 200,
-    borderRadius: 8,
-    marginBottom: 10,
+    height: '100%',
   },
   placeholder: {
     width: '100%',
-    height: 200,
-    backgroundColor: '#f0f0f0',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  placeholderIcon: {
+    fontSize: 80,
+  },
+  backButton: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 40 : 30,
+    left: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: -2,
+  },
+  menuWrapper: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 40 : 30,
+    right: 20,
+    zIndex: 20,
+  },
+  statusMenuButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 6,
+  },
+  statusMenuText: {
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginRight: 6,
+    fontSize: 14,
+  },
+  chevron: {
+    fontSize: 12,
+    color: '#7f8c8d',
+  },
+  dropdown: {
+    position: 'absolute',
+    top: 50,
+    right: 0,
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 5,
+    width: 150,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f1f1',
+  },
+  dropdownText: {
+    fontSize: 14,
+    color: '#34495e',
+    fontWeight: '500',
+  },
+  sheetContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    marginTop: -30, // Overlap image
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingTop: 10,
+  },
+  sheetContent: {
+    paddingHorizontal: 25,
+    paddingBottom: 20,
+  },
+  handleBar: {
+    width: 40,
+    height: 5,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  badge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 8,
+  },
+  badgeText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 12,
+    letterSpacing: 1,
+  },
+  date: {
+    color: '#95a5a6',
+    fontSize: 14,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 10,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  locationIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  locationText: {
+    fontSize: 16,
+    color: '#7f8c8d',
+    fontWeight: '500',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#f1f1f1',
+    marginVertical: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#34495e',
     marginBottom: 10,
   },
   description: {
     fontSize: 16,
-    marginBottom: 10,
-  },
-  details: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 5,
+    color: '#7f8c8d',
+    lineHeight: 24,
   },
   mapPlaceholder: {
     height: 150,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 8,
-    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    marginTop: 10,
   },
-  claimButton: {
-    backgroundColor: '#28a745',
-    padding: 15,
-    borderRadius: 5,
-    alignItems: 'center',
-  },
-  claimText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  chatButton: {
-    backgroundColor: '#007bff',
-    padding: 15,
-    borderRadius: 5,
-    alignItems: 'center',
-  },
-  chatButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  statusButton: {
-    padding: 15,
-    borderRadius: 5,
-    alignItems: 'center',
-  },
-  statusText: {
-    color: '#fff',
+  mapText: {
+    color: '#bdc3c7',
     fontSize: 16,
+  },
+  actionContainer: {
+    marginTop: 30,
+  },
+  primaryButton: {
+    backgroundColor: '#3498db',
+    paddingVertical: 18,
+    borderRadius: 15,
+    alignItems: 'center',
+    shadowColor: '#3498db',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+    marginBottom: 15,
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 18,
     fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  ownerActions: {
+    gap: 10,
+  },
+  secondaryButton: {
+    paddingVertical: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  warningButton: {
+    borderColor: '#f1c40f',
+    backgroundColor: 'rgba(241, 196, 15, 0.1)',
+  },
+  successButton: {
+    borderColor: '#2ecc71',
+    backgroundColor: 'rgba(46, 204, 113, 0.1)',
+  },
+  dangerButton: {
+    borderColor: '#e74c3c',
+    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+  },
+  secondaryButtonText: {
+    fontWeight: '600',
+    fontSize: 16,
+    color: '#34495e',
+  },
+  loginPromptContainer: {
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 10,
   },
   loginPrompt: {
-    textAlign: 'center',
-    color: '#666',
-    marginTop: 20,
-    fontSize: 16,
+    color: '#7f8c8d',
+    fontStyle: 'italic',
   },
 });
 
