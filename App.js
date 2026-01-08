@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View, ActivityIndicator, TouchableOpacity, Text } from 'react-native';
+import { StyleSheet, View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { ItemsProvider } from './ItemsContext';
@@ -13,28 +13,29 @@ import ChatScreen from './ChatScreen';
 const Stack = createStackNavigator();
 
 function AppNavigator() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading } = useAuth();
 
   if (loading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color="#3498db" />
       </View>
     );
   }
 
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Home">
-        <Stack.Screen 
-          name="Home" 
-          component={HomeScreen} 
-          options={{ title: 'Objets Perdus & Trouvés' }} 
-        />
-        <Stack.Screen name="Login" component={Login} options={{ title: 'Connexion' }} />
-        <Stack.Screen name="PostItem" component={PostItem} options={{ title: 'Publier un Objet Perdu' }} />
-        <Stack.Screen name="ItemDetails" component={ItemDetails} options={{ title: 'Détails de l\'Objet' }} />
-        <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {!user ? (
+          <Stack.Screen name="Login" component={Login} />
+        ) : (
+          <>
+            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="PostItem" component={PostItem} options={{ presentation: 'modal', headerShown: true, title: 'Publier', headerBackTitle: 'Annuler' }} />
+            <Stack.Screen name="ItemDetails" component={ItemDetails} />
+            <Stack.Screen name="Chat" component={ChatScreen} options={{ headerShown: true, title: 'Discussion' }} />
+          </>
+        )}
       </Stack.Navigator>
       <StatusBar style="auto" />
     </NavigationContainer>
@@ -56,5 +57,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#fff',
   },
 });

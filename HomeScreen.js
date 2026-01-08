@@ -1,118 +1,72 @@
-import React, { useState, useEffect } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
-import ItemCard from './components/ItemCard';
-import Filters from './components/Filters';
+import React, { useState } from 'react';
+import { View, StyleSheet, FlatList, TouchableOpacity, Text } from 'react-native';
 import { useItems } from './ItemsContext';
 import { useAuth } from './AuthContext';
+import { StatusBar } from 'expo-status-bar';
+import ItemCard from './components/ItemCard';
+import Filters from './components/Filters';
 
 const HomeScreen = ({ navigation }) => {
   const { items } = useItems();
   const { user, logout } = useAuth();
-  const [filteredItems, setFilteredItems] = useState(items);
 
-  useEffect(() => {
-    setFilteredItems(items);
-  }, [items]);
+  const [type, setType] = useState('all');
+  const [category, setCategory] = useState('all');
 
-  const handleFilterChange = (filters) => {
-    let filtered = items;
+  const filteredItems = items.filter(item => {
+    const matchesType = type === 'all' || item.type === type;
+    const matchesCategory = category === 'all' || item.category === category;
+    return matchesType && matchesCategory;
+  });
 
-    if (filters.type !== 'all') {
-      filtered = filtered.filter(item => item.type === filters.type);
-    }
-
-    if (filters.category !== 'all') {
-      filtered = filtered.filter(item => item.category === filters.category);
-    }
-
-    if (filters.status !== 'all') {
-      filtered = filtered.filter(item => item.status === filters.status);
-    }
-
-    if (filters.searchText) {
-      filtered = filtered.filter(item =>
-        item.title.toLowerCase().includes(filters.searchText.toLowerCase()) ||
-        item.description.toLowerCase().includes(filters.searchText.toLowerCase())
-      );
-    }
-
-    // For sort, since no distance, just sort by date for newest
-    if (filters.sortBy === 'newest') {
-      filtered = filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
-    }
-    // Distance not implemented yet
-
-    setFilteredItems(filtered);
+  const handlePost = () => {
+    navigation.navigate('PostItem');
   };
 
-  const handleItemPress = (item) => {
+  const handleDetails = (item) => {
     navigation.navigate('ItemDetails', { item });
-  };
-
-  const handleContactPress = (item) => {
-    if (!user) {
-      Alert.alert('Erreur', 'Vous devez être connecté pour contacter le propriétaire.');
-      return;
-    }
-
-    if (item.userId === user.id) {
-       Alert.alert('Info', 'Ceci est votre propre objet.');
-       return;
-    }
-
-    try {
-      navigation.navigate('Chat', {
-        item,
-        otherUserId: item.userId,
-      });
-    } catch (error) {
-      console.error('Erreur navigation chat:', error);
-      Alert.alert('Erreur', 'Impossible d\'ouvrir le chat.');
-    }
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.topBar}>
-        {user ? (
-          <>
-            <Text style={styles.welcomeText}>Bienvenue, {user.name}!</Text>
-            <View style={styles.headerButtons}>
-              <TouchableOpacity style={styles.postHeaderButton} onPress={() => navigation.navigate('PostItem')}>
-                <Text style={styles.postHeaderText}>Publier</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-                <Text style={styles.logoutText}>Déconnexion</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        ) : (
-          <>
-            <Text style={styles.bannerText}>Connectez-vous pour publier des objets perdus et interagir avec les publications.</Text>
-            <TouchableOpacity style={styles.loginButton} onPress={() => navigation.navigate('Login')}>
-              <Text style={styles.loginButtonText}>Connexion</Text>
-            </TouchableOpacity>
-          </>
-        )}
+      <StatusBar style="dark" />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>FindBack</Text>
+        <TouchableOpacity onPress={logout} style={styles.logoutButton}>
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
       </View>
-      <Filters onFilterChange={handleFilterChange} />
+
+      {/* Filters */}
+      <Filters
+        type={type}
+        setType={setType}
+        category={category}
+        setCategory={setCategory}
+        onApply={() => { }}
+      />
+
+      {/* Feed */}
       <FlatList
         data={filteredItems}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         renderItem={({ item }) => (
-          <ItemCard 
-            item={item} 
-            onPress={() => handleItemPress(item)} 
-            onContact={() => handleContactPress(item)}
-            showContact={!!user && item.type === 'lost' && item.userId !== user?.id}
+          <ItemCard
+            item={item}
+            onPress={() => handleDetails(item)}
+            showContact={false} // Card action handled by Details now
           />
         )}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
       />
-      {user && (
-        <TouchableOpacity style={styles.postButton} onPress={() => navigation.navigate('PostItem')}>
-            <Text style={styles.postText}>+</Text>
-        </TouchableOpacity>
-      )}
+
+      {/* FAB */}
+      <TouchableOpacity style={styles.fab} onPress={handlePost}>
+        <Text style={styles.fabIcon}>+</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -120,77 +74,56 @@ const HomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
+    paddingTop: 40,
   },
-  topBar: {
-    backgroundColor: '#e3f2fd',
-    padding: 10,
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f1f1',
   },
-  welcomeText: {
-    fontSize: 16,
-    color: '#1976d2',
-    fontWeight: 'bold',
-  },
-  bannerText: {
-    fontSize: 14,
-    color: '#1976d2',
-    flex: 1,
-  },
-  loginButton: {
-    backgroundColor: '#1976d2',
-    paddingHorizontal: 15,
-    paddingVertical: 5,
-    borderRadius: 5,
-    marginLeft: 10,
-  },
-  loginButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#3498db',
   },
   logoutButton: {
-    backgroundColor: '#dc3545',
-    paddingHorizontal: 15,
-    paddingVertical: 5,
-    borderRadius: 5,
+    padding: 8,
   },
   logoutText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: '#7f8c8d',
+    fontWeight: '600',
   },
-  headerButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  listContent: {
+    padding: 20,
+    paddingBottom: 80, // Space for FAB
   },
-  postHeaderButton: {
-    backgroundColor: '#28a745',
-    paddingHorizontal: 15,
-    paddingVertical: 5,
-    borderRadius: 5,
-    marginRight: 10,
-  },
-  postHeaderText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  postButton: {
+  fab: {
     position: 'absolute',
-    bottom: 20,
-    right: 20,
+    bottom: 30,
+    right: 30,
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#007bff',
+    backgroundColor: '#3498db',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 5,
+    elevation: 8,
+    shadowColor: '#3498db',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
-  postText: {
+  fabIcon: {
     color: '#fff',
-    fontSize: 30,
+    fontSize: 32,
     fontWeight: 'bold',
+    marginTop: -2,
   },
 });
 

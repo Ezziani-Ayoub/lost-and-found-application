@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-// import AsyncStorage from '@react-native-async-storage/async-storage'; // Not available on web
 
 const AuthContext = createContext();
 
@@ -10,27 +9,28 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // For demo, no persistence on web
-    setLoading(false);
+    // Mock loading delay
+    setTimeout(() => setLoading(false), 500);
   }, []);
 
   const login = async (email, password) => {
-    // Mock login: accept any email/password for demo
+    // Mock login
     const mockUser = { id: 'user1', email, name: email.split('@')[0] };
     setUser(mockUser);
-    // await AsyncStorage.setItem('user', JSON.stringify(mockUser));
   };
 
-  const signup = async (email, password, name) => {
-    // Mock signup
-    const mockUser = { id: Date.now().toString(), email, name };
+  const signup = async (email, password, userData) => {
+    // Mock signup with extended data
+    const mockUser = {
+      id: Date.now().toString(),
+      email,
+      ...userData
+    };
     setUser(mockUser);
-    // await AsyncStorage.setItem('user', JSON.stringify(mockUser));
   };
 
   const logout = async () => {
     setUser(null);
-    // await AsyncStorage.removeItem('user');
   };
 
   return (
