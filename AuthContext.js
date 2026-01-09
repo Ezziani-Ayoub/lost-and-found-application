@@ -1,4 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { 
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged 
+} from 'firebase/auth';
+import { auth } from './firebaseConfig';
 
 const AuthContext = createContext();
 
@@ -9,28 +16,42 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Mock loading delay
-    setTimeout(() => setLoading(false), 500);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      setLoading(false);
+    });
+
+    return unsubscribe;
   }, []);
 
   const login = async (email, password) => {
-    // Mock login
-    const mockUser = { id: 'user1', email, name: email.split('@')[0] };
-    setUser(mockUser);
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      return userCredential.user;
+    } catch (error) {
+      console.error('Erreur de connexion:', error);
+      throw error;
+    }
   };
 
   const signup = async (email, password, userData) => {
-    // Mock signup with extended data
-    const mockUser = {
-      id: Date.now().toString(),
-      email,
-      ...userData
-    };
-    setUser(mockUser);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // Vous pouvez ajouter les données supplémentaires dans Firestore ici
+      return userCredential.user;
+    } catch (error) {
+      console.error('Erreur d\'inscription:', error);
+      throw error;
+    }
   };
 
   const logout = async () => {
-    setUser(null);
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error('Erreur de déconnexion:', error);
+      throw error;
+    }
   };
 
   return (
