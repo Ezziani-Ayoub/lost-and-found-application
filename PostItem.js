@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Platform, KeyboardAvoidingView } from 'react-native';
 import { useItems } from './ItemsContext';
 import { useAuth } from './AuthContext';
+import LocationPicker from './components/LocationPicker';
 
 const PostItem = ({ navigation }) => {
   const { addItem } = useItems();
@@ -9,6 +10,8 @@ const PostItem = ({ navigation }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
+  const [coordinates, setCoordinates] = useState(null);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [category, setCategory] = useState('autre');
   const [status, setStatus] = useState('actif');
   const [type, setType] = useState('lost');
@@ -43,6 +46,7 @@ const PostItem = ({ navigation }) => {
       photo: null, // Photo upload not implemented in UI yet
       date: new Date().toISOString().split('T')[0],
       location,
+      coordinates,
       category,
       status,
     };
@@ -114,6 +118,13 @@ const PostItem = ({ navigation }) => {
             placeholderTextColor="#95a5a6"
           />
 
+          <TouchableOpacity
+            style={styles.mapButton}
+            onPress={() => setShowLocationPicker(true)}
+          >
+            <Text style={styles.mapButtonText}>🗺️ Add Google Maps picker</Text>
+          </TouchableOpacity>
+
           {/* Category Selection */}
           <Text style={styles.sectionLabel}>Catégorie</Text>
           <View style={styles.chipsContainer}>
@@ -139,6 +150,18 @@ const PostItem = ({ navigation }) => {
           <Text style={styles.submitButtonText}>Publier Maintenant</Text>
         </TouchableOpacity>
       </View>
+
+      <LocationPicker
+        visible={showLocationPicker}
+        onClose={() => setShowLocationPicker(false)}
+        onLocationSelect={(coords) => {
+          setCoordinates(coords);
+          if (!location) {
+            setLocation(`Position: ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`);
+          }
+        }}
+        initialLocation={coordinates}
+      />
     </View>
   );
 };
@@ -266,6 +289,20 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     letterSpacing: 0.5,
+  },
+  mapButton: {
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#3498db',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 15,
+    alignItems: 'center',
+  },
+  mapButtonText: {
+    color: '#3498db',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

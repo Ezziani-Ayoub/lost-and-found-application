@@ -15,7 +15,8 @@ export const ItemsProvider = ({ children }) => {
       description: 'J\'ai perdu mon portefeuille en cuir noir avec des cartes et un peu d\'argent.',
       photo: null,
       date: '2023-10-01',
-      location: 'Bibliothèque du Campus',
+      location: 'Bibliothèque Universitaire Casablanca',
+      coordinates: { latitude: 33.5731, longitude: -7.5898 }, // Casablanca
       category: 'portefeuille',
       status: 'actif',
       userId: 'user1', // Mock owner
@@ -27,7 +28,8 @@ export const ItemsProvider = ({ children }) => {
       description: 'Trouvé un trousseau de clés près de l\'entrée.',
       photo: null,
       date: '2023-10-02',
-      location: 'Entrée du Centre Commercial',
+      location: 'Entrée Centre Commercial Anfa',
+      coordinates: { latitude: 33.5865, longitude: -7.6013 }, // Centre Commercial Casablanca
       category: 'cles',
       status: 'actif',
       userId: 'user2',
@@ -39,7 +41,8 @@ export const ItemsProvider = ({ children }) => {
       description: 'J\'ai perdu mon iPhone 12, veuillez contacter si trouvé.',
       photo: null,
       date: '2023-10-03',
-      location: 'Arrêt de Bus',
+      location: 'Arrêt de Bus Maarif',
+      coordinates: { latitude: 33.5939, longitude: -7.6191 }, // Arrêt de Bus Casablanca
       category: 'telephone',
       status: 'actif',
       userId: 'user1',

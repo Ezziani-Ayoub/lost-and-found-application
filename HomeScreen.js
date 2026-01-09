@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 import { StatusBar } from 'expo-status-bar';
 import ItemCard from './components/ItemCard';
 import Filters from './components/Filters';
+import DistanceFilter from './components/DistanceFilter';
 
 const HomeScreen = ({ navigation }) => {
   const { items } = useItems();
@@ -12,11 +13,37 @@ const HomeScreen = ({ navigation }) => {
 
   const [type, setType] = useState('all');
   const [category, setCategory] = useState('all');
+  const [showDistanceFilter, setShowDistanceFilter] = useState(false);
+  const [maxDistance, setMaxDistance] = useState(null);
+  const [userLocation, setUserLocation] = useState(null);
+
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Radius of the Earth in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
 
   const filteredItems = items.filter(item => {
     const matchesType = type === 'all' || item.type === type;
     const matchesCategory = category === 'all' || item.category === category;
-    return matchesType && matchesCategory;
+    
+    let matchesDistance = true;
+    if (maxDistance && userLocation && item.coordinates) {
+      const distance = calculateDistance(
+        userLocation.latitude,
+        userLocation.longitude,
+        item.coordinates.latitude,
+        item.coordinates.longitude
+      );
+      matchesDistance = distance <= maxDistance;
+    }
+    
+    return matchesType && matchesCategory && matchesDistance;
   });
 
   const handlePost = () => {
@@ -25,6 +52,16 @@ const HomeScreen = ({ navigation }) => {
 
   const handleDetails = (item) => {
     navigation.navigate('ItemDetails', { item });
+  };
+
+  const handleDistanceFilter = (distance, location) => {
+    setMaxDistance(distance);
+    setUserLocation(location);
+  };
+
+  const clearDistanceFilter = () => {
+    setMaxDistance(null);
+    setUserLocation(null);
   };
 
   return (
@@ -48,6 +85,28 @@ const HomeScreen = ({ navigation }) => {
         onApply={() => { }}
       />
 
+      {/* Distance Filter */}
+      <View style={styles.distanceFilterContainer}>
+        <TouchableOpacity
+          style={styles.distanceFilterButton}
+          onPress={() => setShowDistanceFilter(true)}
+        >
+          <Text style={styles.distanceFilterText}>
+            🗺️ Filter items by distance
+          </Text>
+        </TouchableOpacity>
+        {maxDistance && (
+          <TouchableOpacity
+            style={styles.clearFilterButton}
+            onPress={clearDistanceFilter}
+          >
+            <Text style={styles.clearFilterText}>
+              Clear ({maxDistance}km)
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       {/* Feed */}
       <FlatList
         data={filteredItems}
@@ -67,6 +126,13 @@ const HomeScreen = ({ navigation }) => {
       <TouchableOpacity style={styles.fab} onPress={handlePost}>
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
+
+      <DistanceFilter
+        visible={showDistanceFilter}
+        onClose={() => setShowDistanceFilter(false)}
+        onDistanceFilter={handleDistanceFilter}
+        userLocation={userLocation}
+      />
     </View>
   );
 };
@@ -124,6 +190,40 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
     marginTop: -2,
+  },
+  distanceFilterContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f1f1',
+    alignItems: 'center',
+  },
+  distanceFilterButton: {
+    backgroundColor: '#3498db',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 20,
+    flex: 1,
+    alignItems: 'center',
+  },
+  distanceFilterText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  clearFilterButton: {
+    marginLeft: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 15,
+    backgroundColor: '#e74c3c',
+  },
+  clearFilterText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
 

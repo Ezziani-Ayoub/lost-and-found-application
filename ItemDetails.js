@@ -3,6 +3,7 @@ import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, ScrollView, Dim
 import { useItems } from './ItemsContext';
 import { useAuth } from './AuthContext';
 import { StatusBar } from 'expo-status-bar';
+import MapDisplay from './components/MapDisplay';
 
 const { width } = Dimensions.get('window');
 
@@ -12,6 +13,7 @@ const ItemDetails = ({ route, navigation }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [showMap, setShowMap] = useState(false);
 
   const isOwner = user && item.userId === user.id;
 
@@ -116,7 +118,12 @@ const ItemDetails = ({ route, navigation }) => {
 
         <Text style={styles.sectionTitle}>Position Approximative</Text>
         <View style={styles.mapPlaceholder}>
-          <Text style={styles.mapText}>🗺️ Carte indisponible</Text>
+          <TouchableOpacity
+            style={styles.mapButton}
+            onPress={() => setShowMap(true)}
+          >
+            <Text style={styles.mapButtonText}>🗺️ Display item location on map</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Action Buttons */}
@@ -150,6 +157,12 @@ const ItemDetails = ({ route, navigation }) => {
         {/* Fill safe area at bottom */}
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <MapDisplay
+        visible={showMap}
+        onClose={() => setShowMap(false)}
+        item={item}
+      />
     </View>
   );
 };
@@ -327,7 +340,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   mapPlaceholder: {
-    height: 150,
+    height: 80,
     backgroundColor: '#f8f9fa',
     borderRadius: 15,
     justifyContent: 'center',
@@ -336,9 +349,17 @@ const styles = StyleSheet.create({
     borderColor: '#e9ecef',
     marginTop: 10,
   },
-  mapText: {
-    color: '#bdc3c7',
+  mapButton: {
+    backgroundColor: '#3498db',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  mapButtonText: {
+    color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
   },
   actionContainer: {
     marginTop: 30,
