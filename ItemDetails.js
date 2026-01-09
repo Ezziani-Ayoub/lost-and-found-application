@@ -1,21 +1,26 @@
 import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, ScrollView, Dimensions, Platform } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, ScrollView, Dimensions, Platform, Modal } from 'react-native';
 import { useItems } from './ItemsContext';
 import { useAuth } from './AuthContext';
 import { StatusBar } from 'expo-status-bar';
 import MapDisplay from './components/MapDisplay';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+const IMAGE_HEIGHT = 400;
 
 const ItemDetails = ({ route, navigation }) => {
   const { item } = route.params;
-  const { updateItem } = useItems();
+  const { updateItem, deleteItem } = useItems();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [fullScreenImage, setFullScreenImage] = useState(false);
 
-  const isOwner = user && item.userId === user.id;
+  // If item or user is missing (e.g. after deletion or logout), handle gracefully
+  if (!item) return null;
+
+  const isOwner = user && item.userId === user.uid;
 
   const handleAction = (action, statusLabel) => {
     updateItem(item.id, { status: action });
@@ -40,24 +45,43 @@ const ItemDetails = ({ route, navigation }) => {
     }
   };
 
+  const handleEdit = () => {
+    navigation.navigate('PostItem', { item });
+  };
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Supprimer l\'annonce',
+      'Êtes-vous sûr de vouloir supprimer cette annonce ? Cette action est irréversible.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteItem(item.id);
+              Alert.alert('Supprimé', 'Votre annonce a été supprimée.');
+              navigation.goBack();
+            } catch (error) {
+              Alert.alert('Erreur', 'Impossible de supprimer l\'annonce.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
 
-      {/* Immersive Header Image */}
-      <View style={styles.imageContainer}>
-        {item.photo ? (
-          <Image source={{ uri: item.photo }} style={styles.image} resizeMode="cover" />
-        ) : (
-          <View style={[styles.placeholder, { backgroundColor: item.type === 'lost' ? '#e74c3c' : '#3498db' }]}>
-            <Text style={styles.placeholderIcon}>{item.type === 'lost' ? '🔍' : '📦'}</Text>
-          </View>
-        )}
+      {/* Top Bar Controls (Back & Menu) - Absolute on top */}
+      <View style={styles.topBar}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Text style={styles.backButtonText}>←</Text>
         </TouchableOpacity>
 
-        {/* Owner Status Menu Button */}
         {isOwner && (
           <View style={styles.menuWrapper}>
             <TouchableOpacity
@@ -65,7 +89,7 @@ const ItemDetails = ({ route, navigation }) => {
               onPress={() => setMenuVisible(!menuVisible)}
             >
               <Text style={styles.statusMenuText}>
-                {item.status === 'actif' ? '🟢 Actif' : item.status === 'en_attente' ? '🟡 En Pause' : '🔴 Remis'}
+                {item.status === 'actif' ? 'Actif' : item.status === 'en_attente' ? 'En Pause' : 'Remis'}
               </Text>
               <Text style={styles.chevron}>▼</Text>
             </TouchableOpacity>
@@ -87,75 +111,103 @@ const ItemDetails = ({ route, navigation }) => {
         )}
       </View>
 
-      {/* Content Sheet */}
+      {/* Main Content ScrollView */}
       <ScrollView
-        style={styles.sheetContainer}
-        contentContainerStyle={styles.sheetContent}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        bounces={false}
       >
-        <View style={styles.handleBar} />
-
-        <View style={styles.headerRow}>
-          <View style={[styles.badge, { backgroundColor: item.type === 'lost' ? '#e74c3c' : '#3498db' }]}>
-            <Text style={styles.badgeText}>{item.type === 'lost' ? 'PERDU' : 'TROUVÉ'}</Text>
-          </View>
-          <Text style={styles.date}>{new Date(item.date).toLocaleDateString()}</Text>
-        </View>
-
-        <Text style={styles.title}>{item.title}</Text>
-
-        <View style={styles.locationRow}>
-          <Text style={styles.locationIcon}>📍</Text>
-          <Text style={styles.locationText}>{item.location}</Text>
-        </View>
-
-        <View style={styles.divider} />
-
-        <Text style={styles.sectionTitle}>Description</Text>
-        <Text style={styles.description}>{item.description}</Text>
-
-        <View style={styles.divider} />
-
-        <Text style={styles.sectionTitle}>Position Approximative</Text>
-        <View style={styles.mapPlaceholder}>
-          <TouchableOpacity
-            style={styles.mapButton}
-            onPress={() => setShowMap(true)}
-          >
-            <Text style={styles.mapButtonText}>🗺️ Display item location on map</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Action Buttons */}
-        <View style={styles.actionContainer}>
-          {user ? (
-            <>
-              {/* Only show Contact button for non-owners */}
-              {!isOwner && (
-                <TouchableOpacity style={styles.primaryButton} onPress={handleChat}>
-                  <Text style={styles.primaryButtonText}>
-                    Contacter le propriétaire
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {isOwner && (
-                <TouchableOpacity style={styles.primaryButton} onPress={handleChat}>
-                  <Text style={styles.primaryButtonText}>
-                    Voir les Messages
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </>
+        {/* Header Image as first scroll item */}
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => item.photo && setFullScreenImage(true)}
+          style={styles.imageContainer}
+        >
+          {item.photo ? (
+            <Image source={{ uri: item.photo }} style={styles.image} resizeMode="cover" />
           ) : (
-            <View style={styles.loginPromptContainer}>
-              <Text style={styles.loginPrompt}>Connectez-vous pour interagir</Text>
+            <View style={[styles.placeholder, { backgroundColor: item.type === 'lost' ? '#e74c3c' : '#3498db' }]}>
+              <Text style={styles.placeholderIcon}>{item.type === 'lost' ? '🔍' : '📦'}</Text>
             </View>
           )}
-        </View>
+        </TouchableOpacity>
 
-        {/* Fill safe area at bottom */}
-        <View style={{ height: 40 }} />
+        {/* Content Sheet Overlapping Image */}
+        <View style={styles.contentSheet}>
+          <View style={styles.handleBar} />
+
+          <View style={styles.headerRow}>
+            <View style={[styles.badge, { backgroundColor: item.type === 'lost' ? '#e74c3c' : '#3498db' }]}>
+              <Text style={styles.badgeText}>{item.type === 'lost' ? 'PERDU' : 'TROUVÉ'}</Text>
+            </View>
+            <Text style={styles.date}>{new Date(item.date).toLocaleDateString()}</Text>
+          </View>
+
+          <Text style={styles.title}>{item.title}</Text>
+
+          <View style={styles.locationRow}>
+            <Text style={styles.locationIcon}>📍</Text>
+            <Text style={styles.locationText}>{item.location}</Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <Text style={styles.sectionTitle}>Description</Text>
+          <Text style={styles.description}>{item.description}</Text>
+
+          <View style={styles.divider} />
+
+          <Text style={styles.sectionTitle}>Position Approximative</Text>
+          <View style={styles.mapPlaceholder}>
+            <TouchableOpacity
+              style={styles.mapButton}
+              onPress={() => setShowMap(true)}
+            >
+              <Text style={styles.mapButtonText}>🗺️ Display item location on map</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.actionContainer}>
+            {user ? (
+              <>
+                {!isOwner ? (
+                  <TouchableOpacity style={styles.primaryButton} onPress={handleChat}>
+                    <Text style={styles.primaryButtonText}>
+                      Contacter le propriétaire
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.ownerActions}>
+                    <TouchableOpacity style={styles.primaryButton} onPress={handleChat}>
+                      <Text style={styles.primaryButtonText}>
+                        Voir les Messages
+                      </Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.ownerButtonsRow}>
+                      <TouchableOpacity style={[styles.actionButton, styles.editButton]} onPress={handleEdit}>
+                        <Text style={styles.actionButtonText}>Modifier</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity style={[styles.actionButton, styles.deleteButton]} onPress={handleDelete}>
+                        <Text style={[styles.actionButtonText, styles.deleteButtonText]}>Supprimer</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+              </>
+            ) : (
+              <View style={styles.loginPromptContainer}>
+                <Text style={styles.loginPrompt}>Connectez-vous pour interagir</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Padding for bottom safety */}
+          <View style={{ height: 40 }} />
+        </View>
       </ScrollView>
 
       <MapDisplay
@@ -163,6 +215,31 @@ const ItemDetails = ({ route, navigation }) => {
         onClose={() => setShowMap(false)}
         item={item}
       />
+
+      {/* Full Screen Image Modal */}
+      <Modal
+        visible={fullScreenImage}
+        transparent={true}
+        onRequestClose={() => setFullScreenImage(false)}
+        animationType="fade"
+      >
+        <View style={styles.fullScreenContainer}>
+          <TouchableOpacity
+            style={styles.fullScreenCloseButton}
+            onPress={() => setFullScreenImage(false)}
+          >
+            <Text style={styles.fullScreenCloseText}>✕</Text>
+          </TouchableOpacity>
+          {item.photo &&
+            <Image
+              source={{ uri: item.photo }}
+              style={styles.fullScreenImage}
+              resizeMode="contain"
+            />
+          }
+        </View>
+      </Modal>
+
     </View>
   );
 };
@@ -172,10 +249,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  scrollContent: {
+    paddingBottom: 0,
+  },
   imageContainer: {
-    height: 300,
     width: '100%',
-    position: 'relative',
+    height: IMAGE_HEIGHT,
+    backgroundColor: '#eee',
   },
   image: {
     width: '100%',
@@ -190,17 +274,24 @@ const styles = StyleSheet.create({
   placeholderIcon: {
     fontSize: 80,
   },
-  backButton: {
+  topBar: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 40 : 30,
-    left: 20,
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100, // Ensure buttons are clickable
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 40 : 30,
+  },
+  backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10,
   },
   backButtonText: {
     color: '#fff',
@@ -209,10 +300,7 @@ const styles = StyleSheet.create({
     marginTop: -2,
   },
   menuWrapper: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 40 : 30,
-    right: 20,
-    zIndex: 20,
+    // Positioning handled by topRow flex
   },
   statusMenuButton: {
     flexDirection: 'row',
@@ -262,17 +350,20 @@ const styles = StyleSheet.create({
     color: '#34495e',
     fontWeight: '500',
   },
-  sheetContainer: {
-    flex: 1,
+  contentSheet: {
     backgroundColor: '#fff',
-    marginTop: -30, // Overlap image
+    marginTop: -40, // Negative margin for overlap
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
-    paddingTop: 10,
-  },
-  sheetContent: {
     paddingHorizontal: 25,
     paddingBottom: 20,
+    paddingTop: 10,
+    minHeight: height - IMAGE_HEIGHT + 40,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 10,
   },
   handleBar: {
     width: 40,
@@ -383,30 +474,37 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   ownerActions: {
-    gap: 10,
+    gap: 15,
   },
-  secondaryButton: {
+  ownerButtonsRow: {
+    flexDirection: 'row',
+    gap: 15,
+  },
+  actionButton: {
+    flex: 1,
     paddingVertical: 15,
-    borderRadius: 12,
+    borderRadius: 15,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
   },
-  warningButton: {
-    borderColor: '#f1c40f',
-    backgroundColor: 'rgba(241, 196, 15, 0.1)',
+  editButton: {
+    backgroundColor: '#e3f2fd',
+    borderColor: '#3498db',
   },
-  successButton: {
-    borderColor: '#2ecc71',
-    backgroundColor: 'rgba(46, 204, 113, 0.1)',
-  },
-  dangerButton: {
+  deleteButton: {
+    backgroundColor: '#feeced',
     borderColor: '#e74c3c',
-    backgroundColor: 'rgba(231, 76, 60, 0.1)',
   },
-  secondaryButtonText: {
-    fontWeight: '600',
-    fontSize: 16,
-    color: '#34495e',
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#3498db',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  deleteButtonText: {
+    color: '#e74c3c',
   },
   loginPromptContainer: {
     alignItems: 'center',
@@ -417,6 +515,30 @@ const styles = StyleSheet.create({
   loginPrompt: {
     color: '#7f8c8d',
     fontStyle: 'italic',
+  },
+  fullScreenContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenImage: {
+    width: '100%',
+    height: '100%',
+  },
+  fullScreenCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 20,
+    padding: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+  },
+  fullScreenCloseText: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
   },
 });
 
