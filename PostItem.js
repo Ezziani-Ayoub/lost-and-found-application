@@ -1,20 +1,33 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Platform, KeyboardAvoidingView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Platform, KeyboardAvoidingView, Image } from 'react-native';
 import { useItems } from './ItemsContext';
 import { useAuth } from './AuthContext';
 import LocationPicker from './components/LocationPicker';
+import * as ImagePicker from 'expo-image-picker';
 
-const PostItem = ({ navigation }) => {
-  const { addItem } = useItems();
+const PostItem = ({ navigation, route }) => {
+  const { addItem, updateItem } = useItems();
   const { user } = useAuth();
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [location, setLocation] = useState('');
-  const [coordinates, setCoordinates] = useState(null);
+
+  // Check if we are in "Edit Mode"
+  const editItem = route.params?.item;
+  const isEditMode = !!editItem;
+
+  const [title, setTitle] = useState(editItem?.title || '');
+  const [description, setDescription] = useState(editItem?.description || '');
+  const [location, setLocation] = useState(editItem?.location || '');
+  const [coordinates, setCoordinates] = useState(editItem?.coordinates || null);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
-  const [category, setCategory] = useState('autre');
-  const [status, setStatus] = useState('actif');
-  const [type, setType] = useState('lost');
+  const [category, setCategory] = useState(editItem?.category || 'autre');
+  const [status, setStatus] = useState(editItem?.status || 'actif');
+  const [type, setType] = useState(editItem?.type || 'lost');
+  const [photo, setPhoto] = useState(editItem?.photo || null);
+
+  useEffect(() => {
+    if (isEditMode) {
+      navigation.setOptions({ headerTitle: 'Modifier l\'annonce' });
+    }
+  }, [isEditMode, navigation]);
 
   // Data
   const categories = [
@@ -29,6 +42,20 @@ const PostItem = ({ navigation }) => {
     { id: 'found', label: 'Objet Trouvé', icon: '📦', color: '#3498db' },
   ];
 
+  const pickImage = async () => {
+    // No permissions request is necessary for launching the image library
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.5,
+    });
+
+    if (!result.canceled) {
+      setPhoto(result.assets[0].uri);
+    }
+  };
+
   const handlePost = async () => {
     if (!user) {
       Alert.alert('Erreur', 'Vous devez être connecté pour publier.');
@@ -39,29 +66,36 @@ const PostItem = ({ navigation }) => {
       return;
     }
 
-    const newItem = {
+    const itemData = {
       type,
       title,
       description,
-      photo: null, // Photo upload not implemented in UI yet
-      date: new Date().toISOString().split('T')[0],
+      photo,
       location,
       coordinates,
       category,
       status,
+      // Date is usually kept from creation, or updated? 
+      // For now, let's keep original date if editing, or new date if creating.
+      ...(isEditMode ? {} : { date: new Date().toISOString().split('T')[0] }),
     };
 
     try {
-      await addItem(newItem);
-      Alert.alert('Succès', 'Votre annonce a été publiée!');
+      if (isEditMode) {
+        await updateItem(editItem.id, itemData);
+        Alert.alert('Succès', 'Annonce mise à jour !');
+      } else {
+        await addItem(itemData);
+        Alert.alert('Succès', 'Votre annonce a été publiée !');
+      }
       navigation.goBack();
     } catch (error) {
-      Alert.alert('Erreur', 'Une erreur est survenue lors de la publication.');
-      console.error('Erreur lors de la publication:', error);
+      Alert.alert('Erreur', 'Une erreur est survenue.');
+      console.error('Erreur:', error);
     }
   };
 
-  if (!user) return null; // Should not happen due to navigation guards
+  if (!user) return null;
 
   return (
     <View style={styles.mainContainer}>
@@ -71,8 +105,10 @@ const PostItem = ({ navigation }) => {
       >
         <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
 
-          <Text style={styles.headerTitle}>Créer une Annonce</Text>
-          <Text style={styles.headerSubtitle}>Dites-nous ce que vous avez perdu ou trouvé.</Text>
+          <Text style={styles.headerTitle}>{isEditMode ? 'Modifier l\'Annonce' : 'Créer une Annonce'}</Text>
+          <Text style={styles.headerSubtitle}>
+            {isEditMode ? 'Mettez à jour les informations de votre objet.' : 'Dites-nous ce que vous avez perdu ou trouvé.'}
+          </Text>
 
           {/* Type Selection */}
           <Text style={styles.sectionLabel}>Type d'annonce</Text>
@@ -93,6 +129,24 @@ const PostItem = ({ navigation }) => {
               </TouchableOpacity>
             ))}
           </View>
+
+          {/* Image Picker */}
+          <Text style={styles.sectionLabel}>Photo</Text>
+          <TouchableOpacity style={styles.imagePickerButton} onPress={pickImage}>
+            {photo ? (
+              <Image source={{ uri: photo }} style={styles.imagePreview} />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Text style={styles.imagePlaceholderIcon}>📷</Text>
+                <Text style={styles.imagePlaceholderText}>Ajouter une photo</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          {photo && (
+            <TouchableOpacity onPress={() => setPhoto(null)} style={styles.removeImageButton}>
+              <Text style={styles.removeImageText}>Supprimer la photo</Text>
+            </TouchableOpacity>
+          )}
 
           {/* Details Form */}
           <Text style={styles.sectionLabel}>Détails</Text>
@@ -127,7 +181,9 @@ const PostItem = ({ navigation }) => {
             style={styles.mapButton}
             onPress={() => setShowLocationPicker(true)}
           >
-            <Text style={styles.mapButtonText}>🗺️ Add Google Maps picker</Text>
+            <Text style={styles.mapButtonText}>
+              {coordinates ? '📍 Position sélectionnée (Modifier)' : '🗺️ Sélectionner sur la carte'}
+            </Text>
           </TouchableOpacity>
 
           {/* Category Selection */}
@@ -152,7 +208,9 @@ const PostItem = ({ navigation }) => {
 
       <View style={styles.footer}>
         <TouchableOpacity style={styles.submitButton} onPress={handlePost}>
-          <Text style={styles.submitButtonText}>Publier Maintenant</Text>
+          <Text style={styles.submitButtonText}>
+            {isEditMode ? 'Mettre à jour' : 'Publier Maintenant'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -161,8 +219,10 @@ const PostItem = ({ navigation }) => {
         onClose={() => setShowLocationPicker(false)}
         onLocationSelect={(coords) => {
           setCoordinates(coords);
+          // Auto-fill location text if empty? Logic can be refined.
           if (!location) {
-            setLocation(`Position: ${coords.latitude.toFixed(6)}, ${coords.longitude.toFixed(6)}`);
+            // Reverse geocoding could go here if we had it.
+            setLocation(`Position: ${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`);
           }
         }}
         initialLocation={coordinates}
@@ -279,7 +339,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#f1f1f1',
   },
   submitButton: {
-    backgroundColor: '#2ecc71', // Green for success/action
+    backgroundColor: '#2ecc71',
     paddingVertical: 18,
     borderRadius: 15,
     alignItems: 'center',
@@ -296,7 +356,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   mapButton: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#e3f2fd',
     borderWidth: 1,
     borderColor: '#3498db',
     borderRadius: 12,
@@ -307,6 +367,42 @@ const styles = StyleSheet.create({
   mapButtonText: {
     color: '#3498db',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  imagePickerButton: {
+    height: 150,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+  imagePreview: {
+    width: '100%',
+    height: '100%',
+  },
+  imagePlaceholder: {
+    alignItems: 'center',
+  },
+  imagePlaceholderIcon: {
+    fontSize: 32,
+    marginBottom: 5,
+  },
+  imagePlaceholderText: {
+    color: '#95a5a6',
+    fontWeight: '500',
+  },
+  removeImageButton: {
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  removeImageText: {
+    color: '#e74c3c',
+    fontSize: 14,
     fontWeight: '600',
   },
 });
