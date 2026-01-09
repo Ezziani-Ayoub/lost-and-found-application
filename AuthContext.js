@@ -16,7 +16,15 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log(' Initialisation de l\'authentification...');
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log(' Utilisateur connecté:', user.email);
+        console.log(' User UID:', user.uid);
+        console.log(' User complet:', user);
+      } else {
+        console.log(' Aucun utilisateur connecté');
+      }
       setUser(user);
       setLoading(false);
     });

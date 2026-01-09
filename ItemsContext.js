@@ -10,7 +10,9 @@ import {
   query, 
   where, 
   orderBy,
-  onSnapshot 
+  onSnapshot,
+  setDoc,
+  getDoc
 } from 'firebase/firestore';
 import { db } from './firebaseConfig';
 
@@ -25,37 +27,67 @@ export const ItemsProvider = ({ children }) => {
 
   // Charger les items depuis Firestore
   useEffect(() => {
+    console.log('🔥 Début du chargement des items depuis Firestore...');
+    console.log('📊 User actuel:', user);
+    
     const itemsCollection = collection(db, 'items');
+    console.log('📂 Collection créée:', itemsCollection);
+    
     const q = query(itemsCollection, orderBy('date', 'desc'));
+    console.log('🔍 Query créée:', q);
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const itemsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      console.log('📸 Snapshot reçu, nombre de documents:', snapshot.size);
+      console.log('📄 Snapshot metadata:', snapshot.metadata);
+      
+      const itemsData = snapshot.docs.map(doc => {
+        console.log(`📋 Document ${doc.id}:`, doc.data());
+        return {
+          id: doc.id,
+          ...doc.data()
+        };
+      });
+      
+      console.log('🎯 Items chargés:', itemsData);
+      console.log('📊 Nombre d\'items:', itemsData.length);
       setItems(itemsData);
       setLoading(false);
     }, (error) => {
-      console.error('Erreur lors du chargement des items:', error);
+      console.error('❌ Erreur lors du chargement des items:', error);
+      console.error('❌ Code d\'erreur:', error.code);
+      console.error('❌ Message d\'erreur:', error.message);
       setLoading(false);
     });
 
-    return () => unsubscribe();
-  }, []);
+    return () => {
+      console.log('🔌 Unsubscribing from Firestore listener');
+      unsubscribe();
+    };
+  }, [user]);
 
   const addItem = async (newItem) => {
-    if (!user) return;
+    if (!user) {
+      console.error('❌ Utilisateur non connecté');
+      return;
+    }
     
     try {
+      console.log('📝 Ajout d\'un nouvel item:', newItem);
+      console.log('👤 User ID:', user.uid);
+      
       const itemsCollection = collection(db, 'items');
-      await addDoc(itemsCollection, {
+      const docRef = await addDoc(itemsCollection, {
         ...newItem,
         status: 'actif',
-        userId: user.id,
+        userId: user.uid,
         createdAt: new Date().toISOString()
       });
+      
+      console.log('✅ Item ajouté avec succès, ID:', docRef.id);
     } catch (error) {
-      console.error('Erreur lors de l\'ajout de l\'item:', error);
+      console.error('❌ Erreur lors de l\'ajout de l\'item:', error);
+      console.error('❌ Code d\'erreur:', error.code);
+      console.error('❌ Message d\'erreur:', error.message);
     }
   };
 
@@ -78,7 +110,7 @@ export const ItemsProvider = ({ children }) => {
   };
 
   return (
-    <ItemsContext.Provider value={{ items, addItem, updateItem, deleteItem }}>
+    <ItemsContext.Provider value={{ items, addItem, updateItem, deleteItem, loading }}>
       {children}
     </ItemsContext.Provider>
   );

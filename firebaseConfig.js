@@ -13,14 +13,19 @@ const firebaseConfig = {
   measurementId: "G-KN5679TPMS"
 };
 
+console.log('Configuration Firebase:', firebaseConfig);
+
 // 1. Initialiser Firebase
 const app = initializeApp(firebaseConfig);
+console.log('Firebase initialisé:', app);
 
 // 2. Initialiser l'authentification
 const auth = getAuth(app);
+console.log('Auth initialisé:', auth);
 
 // 3. Initialiser la base de données Firestore
 const db = getFirestore(app);
+console.log('Firestore initialisé:', db);
 
 // 4. Exporter les services pour les utiliser dans tes pages
 export { auth, db };

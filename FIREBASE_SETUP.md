@@ -1,5 +1,71 @@
 # Configuration Firebase pour Lost & Found Application
 
+## Collections Firestore
+
+Votre base de données contient maintenant 4 collections:
+
+### 1. Collection `items`
+Stocke tous les objets perdus et trouvés
+```
+items (collection)
+  - id (document ID)
+    - type: "lost" | "found"
+    - title: string
+    - description: string
+    - photo: string (URL)
+    - date: string
+    - location: string
+    - coordinates: { latitude: number, longitude: number }
+    - category: string
+    - status: "actif" | "résolu"
+    - userId: string
+    - createdAt: string
+```
+
+### 2. Collection `users`
+Stocke les profils utilisateurs
+```
+users (collection)
+  - uid (document ID = Firebase Auth UID)
+    - uid: string
+    - email: string
+    - displayName: string
+    - photoURL: string (URL)
+    - createdAt: string
+    - lastLoginAt: string
+    - isOnline: boolean
+    - lastSeenAt: string
+    - updatedAt: string
+```
+
+### 3. Collection `chats`
+Stocke les conversations entre utilisateurs
+```
+chats (collection)
+  - id (document ID)
+    - participants: array[string] (2 UIDs)
+    - itemId: string (référence à l'item concerné)
+    - createdAt: string
+    - lastMessageAt: string
+    - lastMessage: string
+    - lastMessageBy: string
+    - createdBy: string
+    - unreadCount: object
+```
+
+### 4. Collection `messages`
+Stocke les messages des chats
+```
+messages (collection)
+  - id (document ID)
+    - chatId: string (référence au chat)
+    - senderId: string (UID de l'expéditeur)
+    - text: string
+    - createdAt: string
+    - read: boolean
+    - readAt: string
+```
+
 ## Étapes de configuration
 
 ### 1. Créer un projet Firebase
@@ -36,23 +102,6 @@ const firebaseConfig = {
 1. Allez dans "Firestore Database"
 2. Créez une nouvelle base de données
 3. Choisissez "Commencer en mode test" (pour le développement)
-4. Créez la collection `items` avec la structure suivante:
-
-```
-items (collection)
-  - id (document ID)
-    - type: "lost" | "found"
-    - title: string
-    - description: string
-    - photo: string (URL)
-    - date: string
-    - location: string
-    - coordinates: { latitude: number, longitude: number }
-    - category: string
-    - status: "actif" | "résolu"
-    - userId: string
-    - createdAt: string
-```
 
 ### 6. Configuration Authentication
 1. Allez dans "Authentication"
@@ -65,8 +114,27 @@ Dans Firestore, allez dans "Règles" et ajoutez:
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+    // Users peuvent lire/écrire leur propre profil
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Items sont publics en lecture, écriture pour les authentifiés
+    match /items/{itemId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // Chats uniquement pour les participants
+    match /chats/{chatId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid in resource.data.participants;
+    }
+    
+    // Messages uniquement pour les participants du chat
+    match /messages/{messageId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid in get(/databases/$(database)/documents/chats/$(resource.data.chatId)).data.participants;
     }
   }
 }
@@ -76,9 +144,19 @@ service cloud.firestore {
 
 - ✅ Authentication Firebase (Email/Mot de passe)
 - ✅ Firestore Database pour les items
+- ✅ Profils utilisateurs automatiques
+- ✅ Système de chat en temps réel
 - ✅ Temps réel avec onSnapshot
 - ✅ CRUD operations (Create, Read, Update, Delete)
 - ✅ Gestion des erreurs
+- ✅ États de connexion utilisateurs
+
+## Contextes React disponibles
+
+- `AuthProvider` - Gestion de l'authentification
+- `UsersProvider` - Gestion des profils utilisateurs
+- `ChatsProvider` - Gestion des chats et messages
+- `ItemsProvider` - Gestion des items (objets perdus/trouvés)
 
 ## Prochaines étapes
 
@@ -86,3 +164,4 @@ service cloud.firestore {
 2. Ajouter des règles de sécurité plus strictes
 3. Implémenter la validation des données
 4. Ajouter des indexes pour les requêtes complexes
+5. Notifications push pour les nouveaux messages

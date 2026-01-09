@@ -29,7 +29,7 @@ const PostItem = ({ navigation }) => {
     { id: 'found', label: 'Objet Trouvé', icon: '📦', color: '#3498db' },
   ];
 
-  const handlePost = () => {
+  const handlePost = async () => {
     if (!user) {
       Alert.alert('Erreur', 'Vous devez être connecté pour publier.');
       return;
@@ -51,9 +51,14 @@ const PostItem = ({ navigation }) => {
       status,
     };
 
-    addItem(newItem);
-    Alert.alert('Succès', 'Votre annonce a été publiée!');
-    navigation.goBack();
+    try {
+      await addItem(newItem);
+      Alert.alert('Succès', 'Votre annonce a été publiée!');
+      navigation.goBack();
+    } catch (error) {
+      Alert.alert('Erreur', 'Une erreur est survenue lors de la publication.');
+      console.error('Erreur lors de la publication:', error);
+    }
   };
 
   if (!user) return null; // Should not happen due to navigation guards

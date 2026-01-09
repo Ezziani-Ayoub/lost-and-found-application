@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, FlatList, TouchableOpacity, Text } from 'react-native';
+import { View, StyleSheet, FlatList, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { useItems } from './ItemsContext';
 import { useAuth } from './AuthContext';
 import { StatusBar } from 'expo-status-bar';
@@ -8,7 +8,7 @@ import Filters from './components/Filters';
 import DistanceFilter from './components/DistanceFilter';
 
 const HomeScreen = ({ navigation }) => {
-  const { items } = useItems();
+  const { items, loading } = useItems();
   const { user, logout } = useAuth();
 
   const [type, setType] = useState('all');
@@ -108,19 +108,32 @@ const HomeScreen = ({ navigation }) => {
       </View>
 
       {/* Feed */}
-      <FlatList
-        data={filteredItems}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => (
-          <ItemCard
-            item={item}
-            onPress={() => handleDetails(item)}
-            showContact={false} // Card action handled by Details now
-          />
-        )}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#3498db" />
+          <Text style={styles.loadingText}>Chargement des posts...</Text>
+        </View>
+      ) : filteredItems.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>
+            {loading ? 'Chargement...' : 'Aucun post trouvé. Soyez le premier à publier !'}
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredItems}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => (
+            <ItemCard
+              item={item}
+              onPress={() => handleDetails(item)}
+              showContact={false} // Card action handled by Details now
+            />
+          )}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {/* FAB */}
       <TouchableOpacity style={styles.fab} onPress={handlePost}>
@@ -224,6 +237,29 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#7f8c8d',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#7f8c8d',
+    textAlign: 'center',
+    paddingHorizontal: 20,
   },
 });
 

@@ -3,6 +3,8 @@ import { StyleSheet, View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { ItemsProvider } from './ItemsContext';
+import { UsersProvider } from './UsersContext';
+import { ChatsProvider } from './ChatsContext';
 import { AuthProvider, useAuth } from './AuthContext';
 import HomeScreen from './HomeScreen';
 import PostItem from './PostItem';
@@ -45,9 +47,13 @@ function AppNavigator() {
 export default function App() {
   return (
     <AuthProvider>
-      <ItemsProvider>
-        <AppNavigator />
-      </ItemsProvider>
+      <UsersProvider>
+        <ChatsProvider>
+          <ItemsProvider>
+            <AppNavigator />
+          </ItemsProvider>
+        </ChatsProvider>
+      </UsersProvider>
     </AuthProvider>
   );
 }
