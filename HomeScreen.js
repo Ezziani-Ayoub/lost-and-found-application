@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, FlatList, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, FlatList, TouchableOpacity, Text, ActivityIndicator, Image } from 'react-native';
 import { useItems } from './ItemsContext';
 import { useAuth } from './AuthContext';
+import { useTheme } from './ThemeContext';
+import { useLanguage } from './LanguageContext';
 import { StatusBar } from 'expo-status-bar';
 import ItemCard from './components/ItemCard';
 import Filters from './components/Filters';
@@ -10,6 +12,8 @@ import DistanceFilter from './components/DistanceFilter';
 const HomeScreen = ({ navigation }) => {
   const { items, loading } = useItems();
   const { user, logout } = useAuth();
+  const { theme, isDarkMode } = useTheme();
+  const { t } = useLanguage();
 
   const [type, setType] = useState('all');
   const [category, setCategory] = useState('all');
@@ -21,17 +25,17 @@ const HomeScreen = ({ navigation }) => {
     const R = 6371; // Radius of the Earth in kilometers
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
 
   const filteredItems = items.filter(item => {
     const matchesType = type === 'all' || item.type === type;
     const matchesCategory = category === 'all' || item.category === category;
-    
+
     let matchesDistance = true;
     if (maxDistance && userLocation && item.coordinates) {
       const distance = calculateDistance(
@@ -42,7 +46,7 @@ const HomeScreen = ({ navigation }) => {
       );
       matchesDistance = distance <= maxDistance;
     }
-    
+
     return matchesType && matchesCategory && matchesDistance;
   });
 
@@ -66,17 +70,16 @@ const HomeScreen = ({ navigation }) => {
 
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="dark" />
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar style={theme.statusBarStyle} />
 
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>FindBack</Text>
+      <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+        <Text style={[styles.headerTitle, { color: theme.primary }]}>{t('homeTitle')}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.settingsButton}>
             <Text style={styles.settingsIcon}>⚙️</Text>
           </TouchableOpacity>
-          {/* Logout button removed; only available in Settings */}
         </View>
       </View>
 
@@ -90,7 +93,7 @@ const HomeScreen = ({ navigation }) => {
       />
 
       {/* Distance Filter */}
-      <View style={styles.distanceFilterContainer}>
+      <View style={[styles.distanceFilterContainer, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <TouchableOpacity
           style={styles.distanceFilterButton}
           onPress={() => setShowDistanceFilter(true)}
@@ -115,11 +118,11 @@ const HomeScreen = ({ navigation }) => {
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#3498db" />
-          <Text style={styles.loadingText}>Chargement des posts...</Text>
+          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Chargement des posts...</Text>
         </View>
       ) : filteredItems.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>
+          <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
             {loading ? 'Chargement...' : 'Aucun post trouvé. Soyez le premier à publier !'}
           </Text>
         </View>
@@ -128,11 +131,60 @@ const HomeScreen = ({ navigation }) => {
           data={filteredItems}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
-            <ItemCard
-              item={item}
+            <TouchableOpacity
+              style={[styles.itemCard, { backgroundColor: theme.surface, marginBottom: 15, borderRadius: 15, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 }]}
               onPress={() => handleDetails(item)}
-              showContact={false} // Card action handled by Details now
-            />
+              activeOpacity={0.9}
+            >
+              <View style={[styles.itemHeader, { flexDirection: 'row', justifyContent: 'space-between', padding: 15, backgroundColor: item.type === 'lost' ? '#e74c3c' : '#3498db', borderTopLeftRadius: 15, borderTopRightRadius: 15 }]}>
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>{item.type === 'lost' ? t('lost').toUpperCase() : t('found').toUpperCase()}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 }}>
+                  <Text style={{ color: '#fff', fontSize: 12 }}>
+                    {item.status === 'actif' ? t('active') : item.status === 'en_attente' ? t('pending') : t('returned')}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={{ padding: 15 }}>
+                <View style={{ flexDirection: 'row' }}>
+                  <View style={{ width: 60, height: 60, borderRadius: 15, backgroundColor: theme.surface, justifyContent: 'center', alignItems: 'center', marginRight: 15, overflow: 'hidden', borderWidth: 1, borderColor: theme.border }}>
+                    {item.photo ? (
+                      <Image
+                        source={{ uri: item.photo }}
+                        style={{ width: '100%', height: '100%' }}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Text style={{ fontSize: 24 }}>
+                        {item.category === 'cles' ? '🔑' :
+                          item.category === 'telephone' ? '📱' :
+                            item.category === 'vêtements' ? '👕' :
+                              item.category === 'portefeuille' ? '👛' : '📦'}
+                      </Text>
+                    )}
+                  </View>
+
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 12, color: item.type === 'lost' ? '#e74c3c' : '#3498db', fontWeight: 'bold', marginBottom: 4 }}>{item.category.toUpperCase()}</Text>
+                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: theme.text, marginBottom: 4 }} numberOfLines={1}>{item.title}</Text>
+                    <Text style={{ fontSize: 14, color: theme.textSecondary, marginBottom: 8 }} numberOfLines={1}>{item.description}</Text>
+
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={{ fontSize: 14, marginRight: 4 }}>📍</Text>
+                      <Text style={{ fontSize: 13, color: theme.textSecondary }} numberOfLines={1}>
+                        {item.location || 'Position inconnue'}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              <View style={{ padding: 15, borderTopWidth: 1, borderTopColor: theme.border }}>
+                <Text style={{ fontSize: 12, color: theme.textSecondary, textAlign: 'right' }}>
+                  {new Date(item.date).toLocaleDateString()}
+                </Text>
+              </View>
+            </TouchableOpacity>
           )}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
@@ -175,12 +227,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#3498db',
   },
-  logoutButton: {
+  settingsButton: {
     padding: 8,
   },
-  logoutText: {
-    color: '#7f8c8d',
-    fontWeight: '600',
+  settingsIcon: {
+    fontSize: 24,
   },
   listContent: {
     padding: 20,

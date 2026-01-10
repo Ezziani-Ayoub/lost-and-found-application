@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Platform, KeyboardAvoidingView, Image } from 'react-native';
 import { useItems } from './ItemsContext';
 import { useAuth } from './AuthContext';
+import { useTheme } from './ThemeContext';
+import { useLanguage } from './LanguageContext';
 import LocationPicker from './components/LocationPicker';
 import * as ImagePicker from 'expo-image-picker';
 
 const PostItem = ({ navigation, route }) => {
   const { addItem, updateItem } = useItems();
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const { t } = useLanguage();
 
   // Check if we are in "Edit Mode"
   const editItem = route.params?.item;
@@ -25,7 +29,7 @@ const PostItem = ({ navigation, route }) => {
 
   useEffect(() => {
     if (isEditMode) {
-      navigation.setOptions({ headerTitle: 'Modifier l\'annonce' });
+      navigation.setOptions({ headerTitle: t('edit') });
     }
   }, [isEditMode, navigation]);
 
@@ -38,8 +42,8 @@ const PostItem = ({ navigation, route }) => {
     { id: 'autre', label: 'Autre', icon: '📦' },
   ];
   const types = [
-    { id: 'lost', label: 'Objet Perdu', icon: '🔍', color: '#e74c3c' },
-    { id: 'found', label: 'Objet Trouvé', icon: '📦', color: '#3498db' },
+    { id: 'lost', label: t('lost'), icon: '🔍', color: '#e74c3c' },
+    { id: 'found', label: t('found'), icon: '📦', color: '#3498db' },
   ];
 
   const pickImage = async () => {
@@ -58,7 +62,7 @@ const PostItem = ({ navigation, route }) => {
 
   const handlePost = async () => {
     if (!user) {
-      Alert.alert('Erreur', 'Vous devez être connecté pour publier.');
+      Alert.alert(t('error'), 'Vous devez être connecté pour publier.');
       return;
     }
     if (!title || !description || !location) {
@@ -83,14 +87,14 @@ const PostItem = ({ navigation, route }) => {
     try {
       if (isEditMode) {
         await updateItem(editItem.id, itemData);
-        Alert.alert('Succès', 'Annonce mise à jour !');
+        Alert.alert(t('success'), t('saved'));
       } else {
         await addItem(itemData);
-        Alert.alert('Succès', 'Votre annonce a été publiée !');
+        Alert.alert(t('success'), t('posted'));
       }
       navigation.goBack();
     } catch (error) {
-      Alert.alert('Erreur', 'Une erreur est survenue.');
+      Alert.alert(t('error'), 'Une erreur est survenue.');
       console.error('Erreur:', error);
     }
   };
@@ -98,26 +102,27 @@ const PostItem = ({ navigation, route }) => {
   if (!user) return null;
 
   return (
-    <View style={styles.mainContainer}>
+    <View style={[styles.mainContainer, { backgroundColor: theme.background }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
         <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
 
-          <Text style={styles.headerTitle}>{isEditMode ? 'Modifier l\'Annonce' : 'Créer une Annonce'}</Text>
-          <Text style={styles.headerSubtitle}>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>{isEditMode ? t('edit') : 'Créer une Annonce'}</Text>
+          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
             {isEditMode ? 'Mettez à jour les informations de votre objet.' : 'Dites-nous ce que vous avez perdu ou trouvé.'}
           </Text>
 
           {/* Type Selection */}
-          <Text style={styles.sectionLabel}>Type d'annonce</Text>
+          <Text style={[styles.sectionLabel, { color: theme.text }]}>Type d'annonce</Text>
           <View style={styles.typeRow}>
             {types.map((t) => (
               <TouchableOpacity
                 key={t.id}
                 style={[
                   styles.typeCard,
+                  { backgroundColor: theme.surface, borderColor: theme.border },
                   type === t.id && { backgroundColor: t.color, borderColor: t.color },
                 ]}
                 onPress={() => setType(t.id)}
@@ -131,49 +136,49 @@ const PostItem = ({ navigation, route }) => {
           </View>
 
           {/* Image Picker */}
-          <Text style={styles.sectionLabel}>Photo</Text>
-          <TouchableOpacity style={styles.imagePickerButton} onPress={pickImage}>
+          <Text style={[styles.sectionLabel, { color: theme.text }]}>{t('profilePic').replace('Profil', 'Photo') /* Hacky reuse or new key? Let's use generic header usually */}</Text>
+          <TouchableOpacity style={[styles.imagePickerButton, { backgroundColor: theme.surface, borderColor: theme.border }]} onPress={pickImage}>
             {photo ? (
               <Image source={{ uri: photo }} style={styles.imagePreview} />
             ) : (
               <View style={styles.imagePlaceholder}>
                 <Text style={styles.imagePlaceholderIcon}>📷</Text>
-                <Text style={styles.imagePlaceholderText}>Ajouter une photo</Text>
+                <Text style={styles.imagePlaceholderText}>{t('selectPhoto')}</Text>
               </View>
             )}
           </TouchableOpacity>
           {photo && (
             <TouchableOpacity onPress={() => setPhoto(null)} style={styles.removeImageButton}>
-              <Text style={styles.removeImageText}>Supprimer la photo</Text>
+              <Text style={styles.removeImageText}>{t('delete')}</Text>
             </TouchableOpacity>
           )}
 
           {/* Details Form */}
-          <Text style={styles.sectionLabel}>Détails</Text>
+          <Text style={[styles.sectionLabel, { color: theme.text }]}>Détails</Text>
 
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
             value={title}
             onChangeText={setTitle}
-            placeholder="Titre (ex: iPhone 13 Noir)"
+            placeholder={t('titlePlaceholder')}
             placeholderTextColor="#95a5a6"
           />
 
           <TextInput
-            style={[styles.input, styles.textArea]}
+            style={[styles.input, styles.textArea, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
             value={description}
             onChangeText={setDescription}
-            placeholder="Description détaillée..."
+            placeholder={t('descPlaceholder')}
             placeholderTextColor="#95a5a6"
             multiline
             textAlignVertical="top"
           />
 
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
             value={location}
             onChangeText={setLocation}
-            placeholder="Lieu (ex: Cafétéria)"
+            placeholder={t('location')}
             placeholderTextColor="#95a5a6"
           />
 
@@ -187,12 +192,12 @@ const PostItem = ({ navigation, route }) => {
           </TouchableOpacity>
 
           {/* Category Selection */}
-          <Text style={styles.sectionLabel}>Catégorie</Text>
+          <Text style={[styles.sectionLabel, { color: theme.text }]}>Catégorie</Text>
           <View style={styles.chipsContainer}>
             {categories.map((cat) => (
               <TouchableOpacity
                 key={cat.id}
-                style={[styles.chip, category === cat.id && styles.activeChip]}
+                style={[styles.chip, { backgroundColor: theme.surface }, category === cat.id && styles.activeChip]}
                 onPress={() => setCategory(cat.id)}
               >
                 <Text style={styles.chipIcon}>{cat.icon}</Text>
@@ -206,7 +211,7 @@ const PostItem = ({ navigation, route }) => {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
         <TouchableOpacity style={styles.submitButton} onPress={handlePost}>
           <Text style={styles.submitButtonText}>
             {isEditMode ? 'Mettre à jour' : 'Publier Maintenant'}
