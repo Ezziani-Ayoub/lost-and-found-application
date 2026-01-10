@@ -8,6 +8,8 @@ import { ItemsProvider } from './ItemsContext';
 import { UsersProvider } from './UsersContext';
 import { ChatsProvider } from './ChatsContext';
 import { AuthProvider, useAuth } from './AuthContext';
+import { ThemeProvider } from './ThemeContext';
+import { LanguageProvider } from './LanguageContext';
 import HomeScreen from './HomeScreen';
 import PostItem from './PostItem';
 import ItemDetails from './ItemDetails';
@@ -62,13 +64,17 @@ function AppNavigator() {
 export default function App() {
   return (
     <AuthProvider>
-      <UsersProvider>
-        <ChatsProvider>
-          <ItemsProvider>
-            <AppNavigator />
-          </ItemsProvider>
-        </ChatsProvider>
-      </UsersProvider>
+      <LanguageProvider>
+        <UsersProvider>
+          <ThemeProvider>
+            <ChatsProvider>
+              <ItemsProvider>
+                <AppNavigator />
+              </ItemsProvider>
+            </ChatsProvider>
+          </ThemeProvider>
+        </UsersProvider>
+      </LanguageProvider>
     </AuthProvider>
   );
 }

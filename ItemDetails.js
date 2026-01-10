@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, ScrollView, Dimensions, Platform, Modal } from 'react-native';
 import { useItems } from './ItemsContext';
 import { useAuth } from './AuthContext';
+import { useTheme } from './ThemeContext';
+import { useLanguage } from './LanguageContext';
 import { StatusBar } from 'expo-status-bar';
 import MapDisplay from './components/MapDisplay';
 
@@ -12,6 +14,8 @@ const ItemDetails = ({ route, navigation }) => {
   const { item } = route.params;
   const { updateItem, deleteItem } = useItems();
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [showMap, setShowMap] = useState(false);
@@ -24,13 +28,13 @@ const ItemDetails = ({ route, navigation }) => {
 
   const handleAction = (action, statusLabel) => {
     updateItem(item.id, { status: action });
-    Alert.alert('Succès', `Objet marqué comme ${statusLabel}!`);
+    Alert.alert(t('success'), `Objet marqué comme ${statusLabel}!`);
     navigation.goBack();
   };
 
   const handleChat = () => {
     if (!user) {
-      Alert.alert('Connexion requise', 'Connectez-vous pour contacter le propriétaire.');
+      Alert.alert(t('error'), 'Connectez-vous pour contacter le propriétaire.');
       return;
     }
 
@@ -41,7 +45,7 @@ const ItemDetails = ({ route, navigation }) => {
         otherUserId: otherUserId || 'pending',
       });
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible d\'ouvrir le chat.');
+      Alert.alert(t('error'), 'Impossible d\'ouvrir le chat.');
     }
   };
 
@@ -51,20 +55,20 @@ const ItemDetails = ({ route, navigation }) => {
 
   const handleDelete = () => {
     Alert.alert(
-      'Supprimer l\'annonce',
+      t('delete'),
       'Êtes-vous sûr de vouloir supprimer cette annonce ? Cette action est irréversible.',
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Supprimer',
+          text: t('delete'),
           style: 'destructive',
           onPress: async () => {
             try {
               await deleteItem(item.id);
-              Alert.alert('Supprimé', 'Votre annonce a été supprimée.');
+              Alert.alert(t('success'), 'Votre annonce a été supprimée.');
               navigation.goBack();
             } catch (error) {
-              Alert.alert('Erreur', 'Impossible de supprimer l\'annonce.');
+              Alert.alert(t('error'), 'Impossible de supprimer l\'annonce.');
             }
           },
         },
@@ -73,8 +77,8 @@ const ItemDetails = ({ route, navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar style={theme.statusBarStyle === 'dark' ? 'dark' : 'light'} />
 
       {/* Top Bar Controls (Back & Menu) - Absolute on top */}
       <View style={styles.topBar}>
@@ -85,25 +89,25 @@ const ItemDetails = ({ route, navigation }) => {
         {isOwner && (
           <View style={styles.menuWrapper}>
             <TouchableOpacity
-              style={styles.statusMenuButton}
+              style={[styles.statusMenuButton, { backgroundColor: theme.surface }]}
               onPress={() => setMenuVisible(!menuVisible)}
             >
-              <Text style={styles.statusMenuText}>
-                {item.status === 'actif' ? 'Actif' : item.status === 'en_attente' ? 'En Pause' : 'Remis'}
+              <Text style={[styles.statusMenuText, { color: theme.text }]}>
+                {item.status === 'actif' ? t('active') : item.status === 'en_attente' ? t('pending') : t('returned')}
               </Text>
               <Text style={styles.chevron}>▼</Text>
             </TouchableOpacity>
 
             {menuVisible && (
-              <View style={styles.dropdown}>
-                <TouchableOpacity style={styles.dropdownItem} onPress={() => { setMenuVisible(false); handleAction('actif', 'Actif'); }}>
-                  <Text style={styles.dropdownText}>🟢 Actif</Text>
+              <View style={[styles.dropdown, { backgroundColor: theme.surface }]}>
+                <TouchableOpacity style={[styles.dropdownItem, { borderBottomColor: theme.border }]} onPress={() => { setMenuVisible(false); handleAction('actif', t('active')); }}>
+                  <Text style={[styles.dropdownText, { color: theme.text }]}>🟢 {t('active')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.dropdownItem} onPress={() => { setMenuVisible(false); handleAction('en_attente', 'En Pause'); }}>
-                  <Text style={styles.dropdownText}>🟡 En Pause</Text>
+                <TouchableOpacity style={[styles.dropdownItem, { borderBottomColor: theme.border }]} onPress={() => { setMenuVisible(false); handleAction('en_attente', t('pending')); }}>
+                  <Text style={[styles.dropdownText, { color: theme.text }]}>🟡 {t('pending')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.dropdownItem} onPress={() => { setMenuVisible(false); handleAction('returned', 'Remis'); }}>
-                  <Text style={styles.dropdownText}>🔴 Remis</Text>
+                <TouchableOpacity style={[styles.dropdownItem, { borderBottomColor: theme.border }]} onPress={() => { setMenuVisible(false); handleAction('returned', t('returned')); }}>
+                  <Text style={[styles.dropdownText, { color: theme.text }]}>🔴 {t('returned')}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -113,7 +117,7 @@ const ItemDetails = ({ route, navigation }) => {
 
       {/* Main Content ScrollView */}
       <ScrollView
-        style={styles.scrollView}
+        style={[styles.scrollView, { backgroundColor: theme.background }]}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         bounces={false}
@@ -134,32 +138,34 @@ const ItemDetails = ({ route, navigation }) => {
         </TouchableOpacity>
 
         {/* Content Sheet Overlapping Image */}
-        <View style={styles.contentSheet}>
-          <View style={styles.handleBar} />
+        <View style={[styles.contentSheet, { backgroundColor: theme.surface }]}>
+          <View style={[styles.handleBar, { backgroundColor: theme.border }]} />
 
           <View style={styles.headerRow}>
             <View style={[styles.badge, { backgroundColor: item.type === 'lost' ? '#e74c3c' : '#3498db' }]}>
-              <Text style={styles.badgeText}>{item.type === 'lost' ? 'PERDU' : 'TROUVÉ'}</Text>
+              <Text style={styles.badgeText}>{item.type === 'lost' ? t('lost').toUpperCase() : t('found').toUpperCase()}</Text>
             </View>
             <Text style={styles.date}>{new Date(item.date).toLocaleDateString()}</Text>
           </View>
 
-          <Text style={styles.title}>{item.title}</Text>
+          <Text style={[styles.title, { color: theme.text }]}>{item.title}</Text>
 
           <View style={styles.locationRow}>
             <Text style={styles.locationIcon}>📍</Text>
-            <Text style={styles.locationText}>{item.location}</Text>
+            <Text style={[styles.locationText, { color: theme.textSecondary }]}>{item.location}</Text>
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
-          <Text style={styles.sectionTitle}>Description</Text>
-          <Text style={styles.description}>{item.description}</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('description')}</Text>
+          <Text style={[styles.description, { color: theme.textSecondary }]}>{item.description}</Text>
 
-          <View style={styles.divider} />
+          {/* ... */}
 
-          <Text style={styles.sectionTitle}>Position Approximative</Text>
-          <View style={styles.mapPlaceholder}>
+          <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Position Approximative</Text>
+          <View style={[styles.mapPlaceholder, { backgroundColor: theme.background, borderColor: theme.border }]}>
             <TouchableOpacity
               style={styles.mapButton}
               onPress={() => setShowMap(true)}
@@ -175,31 +181,31 @@ const ItemDetails = ({ route, navigation }) => {
                 {!isOwner ? (
                   <TouchableOpacity style={styles.primaryButton} onPress={handleChat}>
                     <Text style={styles.primaryButtonText}>
-                      Contacter le propriétaire
+                      {t('contactOwner')}
                     </Text>
                   </TouchableOpacity>
                 ) : (
                   <View style={styles.ownerActions}>
                     <TouchableOpacity style={styles.primaryButton} onPress={handleChat}>
                       <Text style={styles.primaryButtonText}>
-                        Voir les Messages
+                        {t('viewMessages')}
                       </Text>
                     </TouchableOpacity>
 
                     <View style={styles.ownerButtonsRow}>
                       <TouchableOpacity style={[styles.actionButton, styles.editButton]} onPress={handleEdit}>
-                        <Text style={styles.actionButtonText}>Modifier</Text>
+                        <Text style={styles.actionButtonText}>{t('edit')}</Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity style={[styles.actionButton, styles.deleteButton]} onPress={handleDelete}>
-                        <Text style={[styles.actionButtonText, styles.deleteButtonText]}>Supprimer</Text>
+                        <Text style={[styles.actionButtonText, styles.deleteButtonText]}>{t('delete')}</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
                 )}
               </>
             ) : (
-              <View style={styles.loginPromptContainer}>
+              <View style={[styles.loginPromptContainer, { backgroundColor: theme.background }]}>
                 <Text style={styles.loginPrompt}>Connectez-vous pour interagir</Text>
               </View>
             )}

@@ -1,47 +1,76 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useLanguage } from './LanguageContext';
+import { useTheme } from './ThemeContext';
 
 const Language = () => {
-  const [lang, setLang] = useState('fr');
+  const { language, switchLanguage, t } = useLanguage();
+  const { theme } = useTheme();
+
   return (
-    <View style={{flex:1,justifyContent:'center',alignItems:'center',padding:24}}>
-      <Text style={{fontSize:24,fontWeight:'bold',marginBottom:20}}>Langue</Text>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <Text style={[styles.title, { color: theme.text }]}>{t('language')}</Text>
+
       <TouchableOpacity
-        style={[lang==='fr'?styles.selected:styles.btn]}
-        onPress={()=>setLang('fr')}
+        style={[
+          styles.btn,
+          { backgroundColor: theme.surface, borderColor: theme.border },
+          language === 'fr' && { backgroundColor: theme.primary, borderColor: theme.primary }
+        ]}
+        onPress={() => switchLanguage('fr')}
       >
-        <Text style={lang==='fr'?styles.selectedText:styles.text}>Français</Text>
+        <Text style={[
+          styles.text,
+          { color: theme.text },
+          language === 'fr' && styles.selectedText
+        ]}>Français</Text>
       </TouchableOpacity>
+
       <TouchableOpacity
-        style={[lang==='en'?styles.selected:styles.btn]}
-        onPress={()=>setLang('en')}
+        style={[
+          styles.btn,
+          { backgroundColor: theme.surface, borderColor: theme.border },
+          language === 'en' && { backgroundColor: theme.primary, borderColor: theme.primary }
+        ]}
+        onPress={() => switchLanguage('en')}
       >
-        <Text style={lang==='en'?styles.selectedText:styles.text}>English</Text>
+        <Text style={[
+          styles.text,
+          { color: theme.text },
+          language === 'en' && styles.selectedText
+        ]}>English</Text>
       </TouchableOpacity>
-      <Text style={{marginTop:30,color:'#888'}}>Ce choix est local (démo). Pour une vraie app, utiliser i18n-js ou react-intl.</Text>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 30,
+  },
   btn: {
-    backgroundColor:'#f1f3f5',
-    padding:16,
-    borderRadius:10,
-    marginVertical:10,
-    width:200,
-    alignItems:'center',
+    padding: 16,
+    borderRadius: 12,
+    marginVertical: 10,
+    width: '100%',
+    alignItems: 'center',
+    borderWidth: 1,
   },
-  selected: {
-    backgroundColor:'#3498db',
-    padding:16,
-    borderRadius:10,
-    marginVertical:10,
-    width:200,
-    alignItems:'center',
+  text: {
+    fontSize: 16,
+    fontWeight: '600',
   },
-  text: { color:'#2c3e50', fontWeight:'bold', fontSize:16 },
-  selectedText: { color:'#fff', fontWeight:'bold', fontSize:16 },
+  selectedText: {
+    color: '#ffffff',
+  },
 });
 
 export default Language;
