@@ -64,6 +64,7 @@ const HomeScreen = ({ navigation }) => {
     setUserLocation(null);
   };
 
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
@@ -71,9 +72,12 @@ const HomeScreen = ({ navigation }) => {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>FindBack</Text>
-        <TouchableOpacity onPress={logout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.settingsButton}>
+            <Text style={styles.settingsIcon}>⚙️</Text>
+          </TouchableOpacity>
+          {/* Logout button removed; only available in Settings */}
+        </View>
       </View>
 
       {/* Filters */}
