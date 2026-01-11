@@ -5,7 +5,7 @@ import { useUsers } from './UsersContext';
 import { useTheme } from './ThemeContext';
 import { useLanguage } from './LanguageContext';
 import * as ImagePicker from 'expo-image-picker';
-import { updateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { verifyBeforeUpdateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 
 const Account = () => {
   const { user, auth } = useAuth(); // assuming auth is exported from useAuth or accessible
@@ -148,10 +148,8 @@ const Account = () => {
 
     if (await reauthenticate(currentPasswordForEmail)) {
       try {
-        await updateEmail(user, newEmail);
-        // Also update in Firestore
-        await updateUserProfile(user.uid, { email: newEmail });
-        Alert.alert(t('success'), 'Email mis à jour');
+        await verifyBeforeUpdateEmail(user, newEmail);
+        Alert.alert(t('success'), 'Un email de vérification a été envoyé à votre nouvelle adresse. Veuillez confirmer pour finaliser le changement.');
         setShowEmailModal(false);
         setNewEmail('');
         setCurrentPasswordForEmail('');

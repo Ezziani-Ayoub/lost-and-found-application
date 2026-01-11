@@ -1,8 +1,10 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { useTheme } from '../ThemeContext';
 
 const ItemCard = ({ item, onPress, onContact, showContact }) => {
   const { title, description, photo, date, location, category, type, status } = item;
+  const { theme, isDarkMode } = useTheme();
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -25,7 +27,11 @@ const ItemCard = ({ item, onPress, onContact, showContact }) => {
   const getTypeColor = (type) => type === 'lost' ? '#e74c3c' : '#3498db';
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
+    <TouchableOpacity
+      style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
+      onPress={onPress}
+      activeOpacity={0.9}
+    >
 
       {/* Image Section */}
       <View style={styles.imageContainer}>
@@ -43,9 +49,9 @@ const ItemCard = ({ item, onPress, onContact, showContact }) => {
         </View>
 
         {/* Status Badge */}
-        <View style={styles.statusBadge}>
+        <View style={[styles.statusBadge, { backgroundColor: isDarkMode ? 'rgba(0,0,0,0.7)' : 'rgba(255, 255, 255, 0.9)' }]}>
           <View style={[styles.statusDot, { backgroundColor: getStatusColor(status) }]} />
-          <Text style={styles.statusText}>{getStatusLabel(status)}</Text>
+          <Text style={[styles.statusText, { color: isDarkMode ? '#fff' : '#333' }]}>{getStatusLabel(status)}</Text>
         </View>
       </View>
 
@@ -56,13 +62,13 @@ const ItemCard = ({ item, onPress, onContact, showContact }) => {
           <Text style={styles.date}>{new Date(date).toLocaleDateString()}</Text>
         </View>
 
-        <Text style={styles.title} numberOfLines={1}>{title}</Text>
-        <Text style={styles.description} numberOfLines={2}>{description}</Text>
+        <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>{title}</Text>
+        <Text style={[styles.description, { color: theme.textSecondary }]} numberOfLines={2}>{description}</Text>
 
         <View style={styles.footerRow}>
           <View style={styles.locationContainer}>
             <Text style={styles.locationIcon}>📍</Text>
-            <Text style={styles.locationText} numberOfLines={1}>{location}</Text>
+            <Text style={[styles.locationText, { color: theme.textSecondary }]} numberOfLines={1}>{location}</Text>
           </View>
         </View>
 
@@ -84,7 +90,6 @@ const ItemCard = ({ item, onPress, onContact, showContact }) => {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
     borderRadius: 20,
     marginBottom: 20,
     shadowColor: '#000',
@@ -94,7 +99,6 @@ const styles = StyleSheet.create({
     elevation: 5,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#f0f0f0',
   },
   imageContainer: {
     height: 200,
@@ -132,7 +136,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 15,
     right: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 20,
@@ -148,7 +151,6 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#333',
   },
   content: {
     padding: 20,
@@ -171,12 +173,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#2c3e50',
     marginBottom: 8,
   },
   description: {
     fontSize: 15,
-    color: '#7f8c8d',
     lineHeight: 22,
     marginBottom: 15,
   },
@@ -196,7 +196,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   locationText: {
-    color: '#7f8c8d',
     fontSize: 14,
     fontWeight: '500',
   },

@@ -155,6 +155,15 @@ const ItemDetails = ({ route, navigation }) => {
             <Text style={[styles.locationText, { color: theme.textSecondary }]}>{item.location}</Text>
           </View>
 
+          {/* User Profile Link */}
+          <TouchableOpacity
+            style={[styles.userRow, { backgroundColor: theme.background, borderColor: theme.border }]}
+            onPress={() => navigation.navigate('UserProfile', { userId: item.userId })}
+          >
+            <Text style={styles.userLabel}>👤 {t('postedBy') || 'Publié par'}</Text>
+            <Text style={[styles.userName, { color: theme.primary }]}>Voir le profil →</Text>
+          </TouchableOpacity>
+
           <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
           <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('description')}</Text>
@@ -544,6 +553,24 @@ const styles = StyleSheet.create({
   fullScreenCloseText: {
     color: '#fff',
     fontSize: 24,
+    fontWeight: 'bold',
+  },
+  userRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+  },
+  userLabel: {
+    fontSize: 16,
+    color: '#7f8c8d',
+    fontWeight: '500',
+  },
+  userName: {
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });
