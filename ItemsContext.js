@@ -6,13 +6,9 @@ import {
   updateDoc, 
   deleteDoc, 
   doc, 
-  getDocs, 
   query, 
-  where, 
   orderBy,
-  onSnapshot,
-  setDoc,
-  getDoc
+  onSnapshot
 } from 'firebase/firestore';
 import { db } from './firebaseConfig';
 
@@ -27,67 +23,50 @@ export const ItemsProvider = ({ children }) => {
 
   // Charger les items depuis Firestore
   useEffect(() => {
-    console.log('🔥 Début du chargement des items depuis Firestore...');
-    console.log('📊 User actuel:', user);
+    console.log(' Connexion à Firestore...');
     
+    // On utilise 'items' où sont vos données
     const itemsCollection = collection(db, 'items');
-    console.log('📂 Collection créée:', itemsCollection);
     
-    const q = query(itemsCollection, orderBy('date', 'desc'));
-    console.log('🔍 Query créée:', q);
+    // On trie par 'createdAt' pour avoir les plus récents en premier
+    const q = query(itemsCollection, orderBy('createdAt', 'desc'));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      console.log('📸 Snapshot reçu, nombre de documents:', snapshot.size);
-      console.log('📄 Snapshot metadata:', snapshot.metadata);
+      console.log(' Mise à jour reçue de Firestore !');
       
-      const itemsData = snapshot.docs.map(doc => {
-        console.log(`📋 Document ${doc.id}:`, doc.data());
-        return {
-          id: doc.id,
-          ...doc.data()
-        };
-      });
+      const itemsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
       
-      console.log('🎯 Items chargés:', itemsData);
-      console.log('📊 Nombre d\'items:', itemsData.length);
+      console.log('🎯 Objets chargés :', itemsData);
       setItems(itemsData);
       setLoading(false);
     }, (error) => {
-      console.error('❌ Erreur lors du chargement des items:', error);
-      console.error('❌ Code d\'erreur:', error.code);
-      console.error('❌ Message d\'erreur:', error.message);
+      console.error('❌ Erreur Firestore:', error.message);
+      // Si l'erreur d'index revient ici, clique sur le nouveau lien généré dans la console
       setLoading(false);
     });
 
-    return () => {
-      console.log('🔌 Unsubscribing from Firestore listener');
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, [user]);
 
+  // Ajouter un objet depuis l'application
   const addItem = async (newItem) => {
-    if (!user) {
-      console.error('❌ Utilisateur non connecté');
-      return;
-    }
+    if (!user) return;
     
     try {
-      console.log('📝 Ajout d\'un nouvel item:', newItem);
-      console.log('👤 User ID:', user.uid);
-      
       const itemsCollection = collection(db, 'items');
-      const docRef = await addDoc(itemsCollection, {
+      await addDoc(itemsCollection, {
         ...newItem,
         status: 'actif',
         userId: user.uid,
+        title: newItem.title || "Objet sans titre", // Titre de l'objet
         createdAt: new Date().toISOString()
       });
-      
-      console.log('✅ Item ajouté avec succès, ID:', docRef.id);
+      console.log('✅ Objet ajouté à la collection "items"');
     } catch (error) {
-      console.error('❌ Erreur lors de l\'ajout de l\'item:', error);
-      console.error('❌ Code d\'erreur:', error.code);
-      console.error('❌ Message d\'erreur:', error.message);
+      console.error('❌ Erreur ajout:', error.message);
     }
   };
 
@@ -96,7 +75,7 @@ export const ItemsProvider = ({ children }) => {
       const itemDoc = doc(db, 'items', id);
       await updateDoc(itemDoc, updates);
     } catch (error) {
-      console.error('Erreur lors de la mise à jour de l\'item:', error);
+      console.error('Erreur update:', error);
     }
   };
 
@@ -105,7 +84,7 @@ export const ItemsProvider = ({ children }) => {
       const itemDoc = doc(db, 'items', id);
       await deleteDoc(itemDoc);
     } catch (error) {
-      console.error('Erreur lors de la suppression de l\'item:', error);
+      console.error('Erreur delete:', error);
     }
   };
 

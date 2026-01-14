@@ -1,65 +1,83 @@
 
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert, Switch } from 'react-native';
 import { useAuth } from './AuthContext';
 import { useUsers } from './UsersContext';
+import { useTheme } from './ThemeContext';
+import { useLanguage } from './LanguageContext';
 import { deleteUser } from 'firebase/auth';
 
 const Settings = ({ navigation }) => {
   const { user, logout } = useAuth();
   const { setUserOffline } = useUsers();
+  const { theme, toggleTheme, isDarkMode } = useTheme();
+  const { t } = useLanguage();
 
   const handleDeleteAccount = () => {
-    Alert.alert('Supprimer le compte', 'Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Supprimer', style: 'destructive', onPress: async () => {
-        try {
-          if (user) {
-            await setUserOffline(user.uid);
-            await deleteUser(user);
-            Alert.alert('Compte supprimé', 'Votre compte a été supprimé.');
+    Alert.alert(t('deleteAccount'), 'Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.', [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('delete'), style: 'destructive', onPress: async () => {
+          try {
+            if (user) {
+              await setUserOffline(user.uid);
+              await deleteUser(user);
+              Alert.alert('Compte supprimé', 'Votre compte a été supprimé.');
+            }
+          } catch (e) {
+            Alert.alert(t('error'), 'Impossible de supprimer le compte. Veuillez vous reconnecter puis réessayer.');
           }
-        } catch (e) {
-          Alert.alert('Erreur', 'Impossible de supprimer le compte. Veuillez vous reconnecter puis réessayer.');
         }
-      } },
+      },
     ]);
   };
 
   const handleLogout = () => {
-    Alert.alert('Déconnexion', 'Voulez-vous vraiment vous déconnecter ?', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Déconnexion', style: 'destructive', onPress: async () => {
-        try {
-          if (user) await setUserOffline(user.uid);
-          await logout();
-        } catch (e) {
-          Alert.alert('Erreur', 'Impossible de se déconnecter.');
+    Alert.alert(t('logout'), 'Voulez-vous vraiment vous déconnecter ?', [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('logout'), style: 'destructive', onPress: async () => {
+          try {
+            if (user) await setUserOffline(user.uid);
+            await logout();
+          } catch (e) {
+            Alert.alert(t('error'), 'Impossible de se déconnecter.');
+          }
         }
-      } },
+      },
     ]);
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Paramètres</Text>
-      <TouchableOpacity style={styles.item} onPress={() => navigation.navigate('Account')}>
-        <Text>Mon Compte</Text>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <Text style={[styles.header, { color: theme.text }]}>{t('settings')}</Text>
+
+      <View style={[styles.item, { borderBottomColor: theme.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+        <Text style={{ color: theme.text }}>Mode Sombre</Text>
+        <Switch
+          value={isDarkMode}
+          onValueChange={toggleTheme}
+          trackColor={{ false: "#767577", true: "#81b0ff" }}
+          thumbColor={isDarkMode ? "#f5dd4b" : "#f4f3f4"}
+        />
+      </View>
+      <TouchableOpacity style={[styles.item, { borderBottomColor: theme.border }]} onPress={() => navigation.navigate('Account')}>
+        <Text style={{ color: theme.text }}>{t('account')}</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.item} onPress={() => navigation.navigate('Language')}>
-        <Text>Langue</Text>
+      <TouchableOpacity style={[styles.item, { borderBottomColor: theme.border }]} onPress={() => navigation.navigate('Language')}>
+        <Text style={{ color: theme.text }}>{t('language')}</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.item} onPress={() => navigation.navigate('FAQ')}>
-        <Text>FAQ</Text>
+      <TouchableOpacity style={[styles.item, { borderBottomColor: theme.border }]} onPress={() => navigation.navigate('FAQ')}>
+        <Text style={{ color: theme.text }}>{t('faq')}</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.item} onPress={() => navigation.navigate('Notifications')}>
-        <Text>Notifications</Text>
+      <TouchableOpacity style={[styles.item, { borderBottomColor: theme.border }]} onPress={() => navigation.navigate('Notifications')}>
+        <Text style={{ color: theme.text }}>{t('notifications')}</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.item} onPress={handleDeleteAccount}>
-        <Text style={{ color: 'red' }}>Supprimer le compte</Text>
+      <TouchableOpacity style={[styles.item, { borderBottomColor: theme.border }]} onPress={handleDeleteAccount}>
+        <Text style={{ color: 'red' }}>{t('deleteAccount')}</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.item} onPress={handleLogout}>
-        <Text>Déconnexion</Text>
+      <TouchableOpacity style={[styles.item, { borderBottomColor: theme.border }]} onPress={handleLogout}>
+        <Text style={{ color: theme.text }}>{t('logout')}</Text>
       </TouchableOpacity>
     </View>
   );

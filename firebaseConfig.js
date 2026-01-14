@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 
 // Tes vraies clés récupérées sur la console
 const firebaseConfig = {
@@ -27,6 +28,10 @@ console.log('Auth initialisé:', auth);
 const db = getFirestore(app);
 console.log('Firestore initialisé:', db);
 
-// 4. Exporter les services pour les utiliser dans tes pages
-export { auth, db };
+// 4. Initialiser le stockage
+const storage = getStorage(app);
+console.log('Storage initialisé:', storage);
+
+// 5. Exporter les services pour les utiliser dans tes pages
+export { auth, db, storage };
 export default app;

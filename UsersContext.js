@@ -30,6 +30,8 @@ export const UsersProvider = ({ children }) => {
 
   // Écouter les changements des utilisateurs
   useEffect(() => {
+    if (!user) return;
+    
     const usersCollection = collection(db, 'users');
     const unsubscribe = onSnapshot(usersCollection, (snapshot) => {
       const usersData = {};
@@ -44,7 +46,7 @@ export const UsersProvider = ({ children }) => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   const createUserProfile = async (firebaseUser) => {
     try {

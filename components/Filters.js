@@ -1,7 +1,10 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { useTheme } from '../ThemeContext';
 
 const Filters = ({ type, setType, category, setCategory, onApply }) => {
+  const { theme, isDarkMode } = useTheme();
+
   const types = [
     { id: 'all', label: 'Tout' },
     { id: 'lost', label: 'Perdu' },
@@ -20,19 +23,27 @@ const Filters = ({ type, setType, category, setCategory, onApply }) => {
   const renderPill = (item, current, setter) => (
     <TouchableOpacity
       key={item.id}
-      style={[styles.pill, current === item.id && styles.activePill]}
+      style={[
+        styles.pill,
+        { backgroundColor: isDarkMode ? theme.surface : '#f1f3f5' },
+        current === item.id && styles.activePill
+      ]}
       onPress={() => {
         setter(item.id);
       }}
     >
-      <Text style={[styles.pillText, current === item.id && styles.activePillText]}>
+      <Text style={[
+        styles.pillText,
+        { color: isDarkMode ? theme.textSecondary : '#7f8c8d' },
+        current === item.id && styles.activePillText
+      ]}>
         {item.label}
       </Text>
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollRow}>
         {types.map(t => renderPill(t, type, setType))}
       </ScrollView>
@@ -51,7 +62,6 @@ const Filters = ({ type, setType, category, setCategory, onApply }) => {
 const styles = StyleSheet.create({
   container: {
     paddingVertical: 10,
-    backgroundColor: '#fff',
   },
   scrollRow: {
     paddingHorizontal: 15,
@@ -62,7 +72,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#f1f3f5',
     marginRight: 10,
   },
   activePill: {
@@ -74,7 +83,6 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   pillText: {
-    color: '#7f8c8d',
     fontWeight: '600',
   },
   activePillText: {

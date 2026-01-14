@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useAuth } from './AuthContext';
+import { useTheme } from './ThemeContext';
+import { useLanguage } from './LanguageContext';
 import { StatusBar } from 'expo-status-bar';
 
 const Login = ({ navigation }) => {
   const { login, signup } = useAuth();
+  const { theme } = useTheme();
+  const { t } = useLanguage();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -62,85 +66,85 @@ const Login = ({ navigation }) => {
       <ScrollView contentContainerStyle={styles.scrollContent} bounces={false} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.appName}>FindBack</Text>
-          <Text style={styles.tagline}>Lost something? Don't worry people got your back</Text>
+          <Text style={styles.tagline}>{t('tagline')}</Text>
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.title}>{isLogin ? 'Welcome Back!' : 'Create Account'}</Text>
+        <View style={[styles.card, { backgroundColor: theme.surface }]}>
+          <Text style={[styles.title, { color: theme.text }]}>{isLogin ? t('welcomeBack') : t('createAccount')}</Text>
 
           {!isLogin && (
             <>
               <View style={styles.row}>
                 <TextInput
-                  style={[styles.input, styles.halfInput]}
-                  placeholder="First Name"
+                  style={[styles.input, styles.halfInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+                  placeholder={t('firstName')}
                   value={name}
                   onChangeText={setName}
-                  placeholderTextColor="#95a5a6"
+                  placeholderTextColor={theme.textSecondary}
                 />
                 <TextInput
-                  style={[styles.input, styles.halfInput]}
-                  placeholder="Surname"
+                  style={[styles.input, styles.halfInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+                  placeholder={t('surname')}
                   value={surname}
                   onChangeText={setSurname}
-                  placeholderTextColor="#95a5a6"
+                  placeholderTextColor={theme.textSecondary}
                 />
               </View>
 
               <TextInput
-                style={styles.input}
-                placeholder="Age"
+                style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+                placeholder={t('age')}
                 value={age}
                 onChangeText={setAge}
                 keyboardType="numeric"
-                placeholderTextColor="#95a5a6"
+                placeholderTextColor={theme.textSecondary}
               />
 
               <View style={styles.row}>
                 <TextInput
-                  style={[styles.input, styles.halfInput]}
-                  placeholder="Country"
+                  style={[styles.input, styles.halfInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+                  placeholder={t('country')}
                   value={country}
                   onChangeText={setCountry}
-                  placeholderTextColor="#95a5a6"
+                  placeholderTextColor={theme.textSecondary}
                 />
                 <TextInput
-                  style={[styles.input, styles.halfInput]}
-                  placeholder="City"
+                  style={[styles.input, styles.halfInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+                  placeholder={t('city')}
                   value={city}
                   onChangeText={setCity}
-                  placeholderTextColor="#95a5a6"
+                  placeholderTextColor={theme.textSecondary}
                 />
               </View>
 
               <TextInput
-                style={styles.input}
-                placeholder="Phone Number"
+                style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+                placeholder={t('phone')}
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
-                placeholderTextColor="#95a5a6"
+                placeholderTextColor={theme.textSecondary}
               />
             </>
           )}
 
           <TextInput
-            style={styles.input}
-            placeholder="Email Address"
+            style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+            placeholder={t('emailPlaceholder')}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
-            placeholderTextColor="#95a5a6"
+            placeholderTextColor={theme.textSecondary}
           />
 
           <TextInput
-            style={styles.input}
-            placeholder="Password"
+            style={[styles.input, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+            placeholder={t('passwordPlaceholder')}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            placeholderTextColor="#95a5a6"
+            placeholderTextColor={theme.textSecondary}
           />
 
           <TouchableOpacity
@@ -149,14 +153,14 @@ const Login = ({ navigation }) => {
             disabled={loading}
           >
             <Text style={styles.buttonText}>
-              {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Sign Up')}
+              {loading ? t('wait') : (isLogin ? t('signIn') : t('signUp'))}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => setIsLogin(!isLogin)} style={styles.switchContainer}>
-            <Text style={styles.switchText}>
-              {isLogin ? "Don't have an account? " : 'Already have an account? '}
-              <Text style={styles.switchTextBold}>{isLogin ? 'Sign Up' : 'Sign In'}</Text>
+            <Text style={[styles.switchText, { color: theme.textSecondary }]}>
+              {isLogin ? t('noAccount') : t('alreadyAccount')}
+              <Text style={styles.switchTextBold}>{isLogin ? t('signUp') : t('signIn')}</Text>
             </Text>
           </TouchableOpacity>
         </View>
