@@ -30,6 +30,9 @@ export const ChatsProvider = ({ children }) => {
   useEffect(() => {
     if (!user) return;
 
+    // NOTE: Cette requête nécessite un index composite Firebase sur:
+    // - Champ: participants (array-contains)
+    // - Champ: lastMessageAt (descendant)
     const chatsQuery = query(
       collection(db, 'chats'),
       where('participants', 'array-contains', user.uid),

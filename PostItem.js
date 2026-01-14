@@ -60,6 +60,33 @@ const PostItem = ({ navigation, route }) => {
     }
   };
 
+  const convertToBase64 = async (uri) => {
+    if (!uri) return null;
+    
+    try {
+      console.log('🔄 Conversion photo en base64:', uri);
+      
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      console.log('📦 Blob créé, taille:', blob.size);
+      
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result;
+          console.log('✅ Conversion terminée, taille base64:', result.length);
+          resolve(result);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('❌ Erreur conversion photo:', error);
+      Alert.alert('Erreur photo', 'Impossible de traiter la photo.');
+      return null;
+    }
+  };
+
   const handlePost = async () => {
     if (!user) {
       Alert.alert(t('error'), 'Vous devez être connecté pour publier.');
@@ -70,21 +97,27 @@ const PostItem = ({ navigation, route }) => {
       return;
     }
 
-    const itemData = {
-      type,
-      title,
-      description,
-      photo,
-      location,
-      coordinates,
-      category,
-      status,
-      // Date is usually kept from creation, or updated? 
-      // For now, let's keep original date if editing, or new date if creating.
-      ...(isEditMode ? {} : { date: new Date().toISOString().split('T')[0] }),
-    };
-
     try {
+      // Convertir la photo en base64 si elle existe
+      let photoData = photo;
+      if (photo && photo.startsWith('file://')) {
+        photoData = await convertToBase64(photo);
+      }
+
+      const itemData = {
+        type,
+        title,
+        description,
+        photo: photoData,
+        location,
+        coordinates,
+        category,
+        status,
+        // Date is usually kept from creation, or updated? 
+        // For now, let's keep original date if editing, or new date if creating.
+        ...(isEditMode ? {} : { date: new Date().toISOString().split('T')[0] }),
+      };
+
       if (isEditMode) {
         await updateItem(editItem.id, itemData);
         Alert.alert(t('success'), t('saved'));
