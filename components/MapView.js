@@ -13,7 +13,7 @@ const WebMap = ({ region, markers, style }) => {
 
   const marker = markers[0];
   const mapUrl = `https://maps.google.com/maps?q=${marker.coordinate.latitude},${marker.coordinate.longitude}&z=15&output=embed`;
-  
+
   return (
     <View style={[styles.container, style]}>
       <iframe
@@ -28,15 +28,18 @@ const WebMap = ({ region, markers, style }) => {
 };
 
 // Native version using react-native-maps
-const NativeMap = ({ region, markers, style }) => {
+const NativeMap = ({ region, markers, style, onMapPress, ...props }) => {
   try {
     const MapView = require('react-native-maps').default;
     const Marker = require('react-native-maps').Marker;
-    
+
     return (
       <MapView
         style={[styles.container, style]}
         initialRegion={region}
+        region={region}
+        onPress={onMapPress} // MapView uses onPress for map clicks
+        {...props}
       >
         {markers?.map((marker, index) => (
           <Marker
@@ -58,12 +61,12 @@ const NativeMap = ({ region, markers, style }) => {
   }
 };
 
-const MapView = ({ region, markers, style }) => {
+const MapView = ({ region, markers, style, onMapPress, ...props }) => {
   if (Platform.OS === 'web') {
     return <WebMap region={region} markers={markers} style={style} />;
   }
-  
-  return <NativeMap region={region} markers={markers} style={style} />;
+
+  return <NativeMap region={region} markers={markers} style={style} onMapPress={onMapPress} {...props} />;
 };
 
 const styles = StyleSheet.create({

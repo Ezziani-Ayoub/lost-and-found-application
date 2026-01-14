@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  updateDoc, 
+import {
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
   onSnapshot,
   query,
   where
@@ -31,7 +31,7 @@ export const UsersProvider = ({ children }) => {
   // Écouter les changements des utilisateurs
   useEffect(() => {
     if (!user) return;
-    
+
     const usersCollection = collection(db, 'users');
     const unsubscribe = onSnapshot(usersCollection, (snapshot) => {
       const usersData = {};
@@ -52,25 +52,35 @@ export const UsersProvider = ({ children }) => {
     try {
       const userRef = doc(db, 'users', firebaseUser.uid);
       const userDoc = await getDoc(userRef);
-      
+
       if (!userDoc.exists()) {
         // Créer le profil utilisateur s'il n'existe pas
-        await setDoc(userRef, {
+        const userData = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0],
           photoURL: firebaseUser.photoURL || null,
+          role: firebaseUser.email === 'admin123@gmail.com' ? 'admin' : 'user', // Auto-admin for specific email
           createdAt: new Date().toISOString(),
           lastLoginAt: new Date().toISOString(),
-          isOnline: true
-        });
-        console.log('✅ Profil utilisateur créé:', firebaseUser.uid);
+          isOnline: true,
+          isBanned: false,
+        };
+        await setDoc(userRef, userData);
+        console.log('✅ Profil utilisateur créé:', firebaseUser.uid, 'Role:', userData.role);
       } else {
         // Mettre à jour le dernier login
         await updateDoc(userRef, {
           lastLoginAt: new Date().toISOString(),
           isOnline: true
         });
+        // Ensure admin role is kept/updated if needed (optional, but good for safety)
+        if (firebaseUser.email === 'admin123@gmail.com') {
+          const currentData = userDoc.data();
+          if (currentData.role !== 'admin') {
+            await updateDoc(userRef, { role: 'admin' });
+          }
+        }
         console.log('✅ Profil utilisateur mis à jour:', firebaseUser.uid);
       }
     } catch (error) {
@@ -91,6 +101,36 @@ export const UsersProvider = ({ children }) => {
     }
   };
 
+  const banUser = async (uid, banType = 'permanent') => {
+    try {
+      const userRef = doc(db, 'users', uid);
+      await updateDoc(userRef, {
+        isBanned: true,
+        banType: banType,
+        banDate: new Date().toISOString(),
+      });
+      console.log(`🚫 Utilisateur ${uid} banni (${banType})`);
+    } catch (error) {
+      console.error('Erreur lors du bannissement:', error);
+      throw error;
+    }
+  };
+
+  const unbanUser = async (uid) => {
+    try {
+      const userRef = doc(db, 'users', uid);
+      await updateDoc(userRef, {
+        isBanned: false,
+        banType: null,
+        banDate: null,
+      });
+      console.log(`✅ Utilisateur ${uid} débanni`);
+    } catch (error) {
+      console.error('Erreur lors du débannissement:', error);
+      throw error;
+    }
+  };
+
   const setUserOffline = async (uid) => {
     try {
       const userRef = doc(db, 'users', uid);
@@ -108,13 +148,15 @@ export const UsersProvider = ({ children }) => {
   };
 
   return (
-    <UsersContext.Provider value={{ 
-      users, 
-      createUserProfile, 
-      updateUserProfile, 
-      setUserOffline, 
-      getUserById, 
-      loading 
+    <UsersContext.Provider value={{
+      users,
+      createUserProfile,
+      updateUserProfile,
+      banUser,
+      unbanUser,
+      setUserOffline,
+      getUserById,
+      loading
     }}>
       {children}
     </UsersContext.Provider>

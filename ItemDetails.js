@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, ScrollView, Dimensions, Platform, Modal, ActivityIndicator } from 'react-native';
 import { useItems } from './ItemsContext';
 import { useAuth } from './AuthContext';
+import { useUsers } from './UsersContext';
 import { useTheme } from './ThemeContext';
 import { useLanguage } from './LanguageContext';
 import { StatusBar } from 'expo-status-bar';
@@ -16,6 +17,8 @@ const ItemDetails = ({ route, navigation }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const { t } = useLanguage();
+  // We need to access users context to check for admin role
+  const { users } = useUsers();
 
   const [loading, setLoading] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -23,7 +26,10 @@ const ItemDetails = ({ route, navigation }) => {
   const [fullScreenImage, setFullScreenImage] = useState(false);
 
   const currentItem = items.find(i => i.id === initialItem.id) || initialItem;
-  const isOwner = user && currentItem?.userId === user.uid;
+
+  // Admin privilege: Admins are treated as owners
+  const isAdmin = user && users[user.uid]?.role === 'admin';
+  const isOwner = user && (currentItem?.userId === user.uid || isAdmin);
 
   const handleAction = async (action, statusLabel) => {
     try {
@@ -146,7 +152,13 @@ const ItemDetails = ({ route, navigation }) => {
 
           <View style={styles.locationRow}>
             <Text style={styles.locationIcon}>📍</Text>
-            <Text style={[styles.locationText, { color: theme.textSecondary }]}>{currentItem.location}</Text>
+            {currentItem.city || currentItem.country ? (
+              <Text style={[styles.locationText, { color: theme.text }]}>
+                {currentItem.city ? `${currentItem.city}, ` : ''}{currentItem.country}
+              </Text>
+            ) : (
+              <Text style={[styles.locationText, { color: theme.text }]}>{currentItem.location}</Text>
+            )}
           </View>
 
           <TouchableOpacity
@@ -167,7 +179,7 @@ const ItemDetails = ({ route, navigation }) => {
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Position Approximative</Text>
           <View style={[styles.mapPlaceholder, { backgroundColor: theme.background, borderColor: theme.border }]}>
             <TouchableOpacity style={styles.mapButton} onPress={() => setShowMap(true)}>
-              <Text style={styles.mapButtonText}>🗺️ Display item location on map</Text>
+              <Text style={[styles.mapButtonText, { color: theme.primary }]}>🗺️ Display item location on map</Text>
             </TouchableOpacity>
           </View>
 
@@ -218,4 +230,299 @@ const ItemDetails = ({ route, navigation }) => {
   );
 };
 
-// ... gardez vos styles identiques à ceux fournis précédemment
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  topBar: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    right: 20,
+    zIndex: 100,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginTop: -2,
+  },
+  menuWrapper: {
+    position: 'relative',
+    zIndex: 100,
+  },
+  statusMenuButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  statusMenuText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginRight: 6,
+  },
+  chevron: {
+    fontSize: 12,
+    color: '#666',
+  },
+  dropdown: {
+    position: 'absolute',
+    top: 45,
+    right: 0,
+    width: 150,
+    borderRadius: 12,
+    padding: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  dropdownItem: {
+    padding: 12,
+    borderBottomWidth: 0.5,
+  },
+  dropdownText: {
+    fontSize: 14,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 40,
+  },
+  imageContainer: {
+    width: width,
+    height: IMAGE_HEIGHT,
+    backgroundColor: '#f0f0f0',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+  placeholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderIcon: {
+    fontSize: 80,
+  },
+  contentSheet: {
+    flex: 1,
+    marginTop: -40,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 40,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  handleBar: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginVertical: 12,
+    opacity: 0.3,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  badge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  date: {
+    fontSize: 13,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '800',
+    marginBottom: 8,
+    letterSpacing: -0.5,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  locationIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  locationText: {
+    fontSize: 15,
+    flex: 1,
+  },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 24,
+  },
+  userLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  userName: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  divider: {
+    height: 1,
+    width: '100%',
+    opacity: 0.5,
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  description: {
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  mapPlaceholder: {
+    height: 150,
+    borderRadius: 16,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 32,
+    overflow: 'hidden',
+    borderStyle: 'dashed',
+  },
+  mapButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
+  mapButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  actionContainer: {
+    marginTop: 8,
+  },
+  primaryButton: {
+    backgroundColor: '#2563EB',
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  ownerActions: {
+    gap: 16,
+  },
+  ownerButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  editButton: {
+    borderColor: '#2563EB',
+    backgroundColor: 'transparent',
+  },
+  deleteButton: {
+    borderColor: '#ef4444',
+    backgroundColor: 'transparent',
+  },
+  actionButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2563EB',
+  },
+  deleteButtonText: {
+    color: '#ef4444',
+  },
+  loginPromptContainer: {
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.03)',
+  },
+  loginPrompt: {
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
+  fullScreenContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullScreenCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    padding: 10,
+    zIndex: 10,
+  },
+  fullScreenCloseText: {
+    color: '#fff',
+    fontSize: 30,
+    fontWeight: 'bold',
+  },
+  fullScreenImage: {
+    width: '100%',
+    height: '100%',
+  },
+});
+
+export default ItemDetails;

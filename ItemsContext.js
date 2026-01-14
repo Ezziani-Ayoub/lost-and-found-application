@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  query, 
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  query,
   orderBy,
   onSnapshot
 } from 'firebase/firestore';
@@ -24,22 +24,21 @@ export const ItemsProvider = ({ children }) => {
   // Charger les items depuis Firestore
   useEffect(() => {
     console.log(' Connexion à Firestore...');
-    
+
     // On utilise 'items' où sont vos données
     const itemsCollection = collection(db, 'items');
-    
+
     // On trie par 'createdAt' pour avoir les plus récents en premier
     const q = query(itemsCollection, orderBy('createdAt', 'desc'));
-    
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       console.log(' Mise à jour reçue de Firestore !');
-      
+
       const itemsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
-      
-      console.log('🎯 Objets chargés :', itemsData);
+
       setItems(itemsData);
       setLoading(false);
     }, (error) => {
@@ -54,7 +53,7 @@ export const ItemsProvider = ({ children }) => {
   // Ajouter un objet depuis l'application
   const addItem = async (newItem) => {
     if (!user) return;
-    
+
     try {
       const itemsCollection = collection(db, 'items');
       await addDoc(itemsCollection, {

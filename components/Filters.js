@@ -52,9 +52,7 @@ const Filters = ({ type, setType, category, setCategory, onApply }) => {
         {categories.map(c => renderPill(c, category, setCategory))}
       </ScrollView>
 
-      <TouchableOpacity style={styles.applyButton} onPress={onApply}>
-        <Text style={styles.applyButtonText}>Appliquer Filtres</Text>
-      </TouchableOpacity>
+
     </View>
   );
 };
@@ -88,19 +86,6 @@ const styles = StyleSheet.create({
   activePillText: {
     color: '#fff',
     fontWeight: 'bold',
-  },
-  applyButton: {
-    marginHorizontal: 15,
-    backgroundColor: '#2c3e50',
-    padding: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: 5,
-  },
-  applyButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
   },
 });
 

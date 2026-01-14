@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { 
+import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
-  onAuthStateChanged 
+  onAuthStateChanged
 } from 'firebase/auth';
+import { db } from './firebaseConfig';
+import { doc, getDoc } from 'firebase/firestore';
 import { auth } from './firebaseConfig';
 
 const AuthContext = createContext();
@@ -17,11 +19,25 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     console.log(' Initialisation de l\'authentification...');
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         console.log(' Utilisateur connecté:', user.email);
-        console.log(' User UID:', user.uid);
-        console.log(' User complet:', user);
+
+        // Check if user is banned
+        try {
+          const userRef = doc(db, 'users', user.uid);
+          const userSnap = await getDoc(userRef);
+
+          if (userSnap.exists() && userSnap.data().isBanned) {
+            console.log('🚫 User is banned, forcing logout');
+            await signOut(auth);
+            setUser(null);
+            setLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.error('Error checking ban status:', e);
+        }
       } else {
         console.log(' Aucun utilisateur connecté');
       }

@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from './firebaseConfig';
 import { useAuth } from './AuthContext';
 import { useTheme } from './ThemeContext';
 import { useLanguage } from './LanguageContext';
 import { StatusBar } from 'expo-status-bar';
 
 const Login = ({ navigation }) => {
-  const { login, signup } = useAuth();
+  const { login, signup, logout } = useAuth();
   const { theme } = useTheme();
   const { t } = useLanguage();
   const [isLogin, setIsLogin] = useState(true);
@@ -38,10 +40,11 @@ const Login = ({ navigation }) => {
 
     setLoading(true);
     try {
+      let firebaseUser;
       if (isLogin) {
-        await login(email, password);
+        firebaseUser = await login(email, password);
       } else {
-        await signup(email, password, {
+        firebaseUser = await signup(email, password, {
           name,
           surname,
           age,
@@ -50,7 +53,28 @@ const Login = ({ navigation }) => {
           phone
         });
       }
+
+      // Check for ban status immediately after login
+      // Check for ban status immediately after login
+      if (firebaseUser) {
+        const userRef = doc(db, 'users', firebaseUser.uid);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          if (userData.isBanned) {
+            await logout(); // Logout immediately
+            Alert.alert(
+              'Compte Suspendu',
+              'Your account has been suspended for further info please contact us in FindBack@gmail.com'
+            );
+            return;
+          }
+        }
+      }
+
     } catch (error) {
+      console.error(error);
       Alert.alert('Erreur', 'L\'authentification a échoué. Veuillez réessayer.');
     } finally {
       setLoading(false);

@@ -17,6 +17,7 @@ import UserProfile from './UserProfile';
 import Login from './Login';
 import ChatScreen from './ChatScreen';
 import Settings from './Settings';
+import BannedUsersScreen from './BannedUsersScreen';
 
 import Account from './Account';
 import Language from './Language';
@@ -67,6 +68,7 @@ function AppNavigator() {
               <Stack.Screen name="Language" component={Language} options={{ headerShown: true, title: 'Langue' }} />
               <Stack.Screen name="FAQ" component={FAQ} options={{ headerShown: true, title: 'FAQ' }} />
               <Stack.Screen name="Notifications" component={Notifications} options={{ headerShown: true, title: 'Notifications' }} />
+              <Stack.Screen name="BannedUsers" component={BannedUsersScreen} options={{ headerShown: true, title: 'Utilisateurs Bannis' }} />
               <Stack.Screen name="PostItem" component={PostItem} options={{ presentation: 'modal', headerShown: true, title: 'Publier', headerBackTitle: 'Annuler' }} />
               <Stack.Screen name="ItemDetails" component={ItemDetails} />
               <Stack.Screen name="UserProfile" component={UserProfile} options={{ headerShown: true, title: 'Profil' }} />

@@ -7,7 +7,8 @@ import { useLanguage } from './LanguageContext';
 import { StatusBar } from 'expo-status-bar';
 import ItemCard from './components/ItemCard';
 import Filters from './components/Filters';
-import DistanceFilter from './components/DistanceFilter';
+
+import LocationFilter from './components/LocationFilter';
 
 const HomeScreen = ({ navigation }) => {
   const { items, loading } = useItems();
@@ -17,37 +18,29 @@ const HomeScreen = ({ navigation }) => {
 
   const [type, setType] = useState('all');
   const [category, setCategory] = useState('all');
-  const [showDistanceFilter, setShowDistanceFilter] = useState(false);
-  const [maxDistance, setMaxDistance] = useState(null);
-  const [userLocation, setUserLocation] = useState(null);
+  const [showLocationFilter, setShowLocationFilter] = useState(false);
+  const [filterCountry, setFilterCountry] = useState('');
+  const [filterCity, setFilterCity] = useState('');
 
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; // Radius of the Earth in kilometers
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
+
 
   const filteredItems = items.filter(item => {
     const matchesType = type === 'all' || item.type === type;
     const matchesCategory = category === 'all' || item.category === category;
 
-    let matchesDistance = true;
-    if (maxDistance && userLocation && item.coordinates) {
-      const distance = calculateDistance(
-        userLocation.latitude,
-        userLocation.longitude,
-        item.coordinates.latitude,
-        item.coordinates.longitude
-      );
-      matchesDistance = distance <= maxDistance;
+    let matchesLocation = true;
+    if (filterCountry) {
+      matchesLocation = matchesLocation && item.country === filterCountry;
+    }
+    if (filterCity) {
+      // Case insensitive partial match or exact? User said "select country" and "add city option".
+      // Often city search is fuzzy. Let's do case-insensitive partial for now to be safe.
+      // Actually user said "select country (add known countries) and also select the city". 
+      // If it's a text input, partial match is better.
+      matchesLocation = matchesLocation && item.city && item.city.toLowerCase().includes(filterCity.toLowerCase());
     }
 
-    return matchesType && matchesCategory && matchesDistance;
+    return matchesType && matchesCategory && matchesLocation;
   });
 
   const handlePost = () => {
@@ -58,14 +51,14 @@ const HomeScreen = ({ navigation }) => {
     navigation.navigate('ItemDetails', { item });
   };
 
-  const handleDistanceFilter = (distance, location) => {
-    setMaxDistance(distance);
-    setUserLocation(location);
+  const handleLocationFilter = (country, city) => {
+    setFilterCountry(country);
+    setFilterCity(city);
   };
 
-  const clearDistanceFilter = () => {
-    setMaxDistance(null);
-    setUserLocation(null);
+  const clearLocationFilter = () => {
+    setFilterCountry('');
+    setFilterCity('');
   };
 
 
@@ -92,23 +85,23 @@ const HomeScreen = ({ navigation }) => {
         onApply={() => { }}
       />
 
-      {/* Distance Filter */}
+      {/* Location Filter */}
       <View style={[styles.distanceFilterContainer, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <TouchableOpacity
           style={styles.distanceFilterButton}
-          onPress={() => setShowDistanceFilter(true)}
+          onPress={() => setShowLocationFilter(true)}
         >
           <Text style={styles.distanceFilterText}>
-            🗺️ Filter items by distance
+            🌍 Filtrer par Lieu
           </Text>
         </TouchableOpacity>
-        {maxDistance && (
+        {(filterCountry || filterCity) && (
           <TouchableOpacity
             style={styles.clearFilterButton}
-            onPress={clearDistanceFilter}
+            onPress={clearLocationFilter}
           >
             <Text style={styles.clearFilterText}>
-              Clear ({maxDistance}km)
+              Effacer ({filterCountry ? filterCountry : ''} {filterCity ? `- ${filterCity}` : ''})
             </Text>
           </TouchableOpacity>
         )}
@@ -196,11 +189,12 @@ const HomeScreen = ({ navigation }) => {
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
 
-      <DistanceFilter
-        visible={showDistanceFilter}
-        onClose={() => setShowDistanceFilter(false)}
-        onDistanceFilter={handleDistanceFilter}
-        userLocation={userLocation}
+      <LocationFilter
+        visible={showLocationFilter}
+        onClose={() => setShowLocationFilter(false)}
+        onApply={handleLocationFilter}
+        initialCountry={filterCountry}
+        initialCity={filterCity}
       />
     </View>
   );
