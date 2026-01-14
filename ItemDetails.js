@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, ScrollView, Dimensions, Platform, Modal } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, ScrollView, Dimensions, Platform, Modal, ActivityIndicator } from 'react-native';
 import { useItems } from './ItemsContext';
 import { useAuth } from './AuthContext';
 import { useTheme } from './ThemeContext';
@@ -11,25 +11,28 @@ const { width, height } = Dimensions.get('window');
 const IMAGE_HEIGHT = 400;
 
 const ItemDetails = ({ route, navigation }) => {
-  const { item } = route.params;
-  const { updateItem, deleteItem } = useItems();
+  const { item: initialItem } = route.params;
+  const { items, updateItem, deleteItem, loading: itemsLoading } = useItems();
   const { user } = useAuth();
   const { theme } = useTheme();
   const { t } = useLanguage();
+
   const [loading, setLoading] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [fullScreenImage, setFullScreenImage] = useState(false);
 
-  // If item or user is missing (e.g. after deletion or logout), handle gracefully
-  if (!item) return null;
+  const currentItem = items.find(i => i.id === initialItem.id) || initialItem;
+  const isOwner = user && currentItem?.userId === user.uid;
 
-  const isOwner = user && item.userId === user.uid;
-
-  const handleAction = (action, statusLabel) => {
-    updateItem(item.id, { status: action });
-    Alert.alert(t('success'), `Objet marqué comme ${statusLabel}!`);
-    navigation.goBack();
+  const handleAction = async (action, statusLabel) => {
+    try {
+      await updateItem(currentItem.id, { status: action });
+      Alert.alert(t('success') || 'Succès', `Objet marqué comme ${statusLabel}!`);
+      setMenuVisible(false);
+    } catch (e) {
+      Alert.alert(t('error') || 'Erreur', 'Mise à jour échouée');
+    }
   };
 
   const handleChat = () => {
@@ -37,20 +40,14 @@ const ItemDetails = ({ route, navigation }) => {
       Alert.alert(t('error'), 'Connectez-vous pour contacter le propriétaire.');
       return;
     }
-
-    try {
-      const otherUserId = isOwner ? null : item.userId;
-      navigation.navigate('Chat', {
-        item,
-        otherUserId: otherUserId || 'pending',
-      });
-    } catch (error) {
-      Alert.alert(t('error'), 'Impossible d\'ouvrir le chat.');
-    }
+    navigation.navigate('Chat', {
+      item: currentItem,
+      otherUserId: isOwner ? null : currentItem.userId,
+    });
   };
 
   const handleEdit = () => {
-    navigation.navigate('PostItem', { item });
+    navigation.navigate('PostItem', { item: currentItem });
   };
 
   const handleDelete = () => {
@@ -64,7 +61,7 @@ const ItemDetails = ({ route, navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await deleteItem(item.id);
+              await deleteItem(currentItem.id);
               Alert.alert(t('success'), 'Votre annonce a été supprimée.');
               navigation.goBack();
             } catch (error) {
@@ -76,11 +73,12 @@ const ItemDetails = ({ route, navigation }) => {
     );
   };
 
+  if (!currentItem) return null;
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <StatusBar style={theme.statusBarStyle === 'dark' ? 'dark' : 'light'} />
 
-      {/* Top Bar Controls (Back & Menu) - Absolute on top */}
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Text style={styles.backButtonText}>←</Text>
@@ -93,20 +91,20 @@ const ItemDetails = ({ route, navigation }) => {
               onPress={() => setMenuVisible(!menuVisible)}
             >
               <Text style={[styles.statusMenuText, { color: theme.text }]}>
-                {item.status === 'actif' ? t('active') : item.status === 'en_attente' ? t('pending') : t('returned')}
+                {currentItem.status === 'actif' ? t('active') : currentItem.status === 'en_attente' ? t('pending') : t('returned')}
               </Text>
               <Text style={styles.chevron}>▼</Text>
             </TouchableOpacity>
 
             {menuVisible && (
               <View style={[styles.dropdown, { backgroundColor: theme.surface }]}>
-                <TouchableOpacity style={[styles.dropdownItem, { borderBottomColor: theme.border }]} onPress={() => { setMenuVisible(false); handleAction('actif', t('active')); }}>
+                <TouchableOpacity style={[styles.dropdownItem, { borderBottomColor: theme.border }]} onPress={() => handleAction('actif', t('active'))}>
                   <Text style={[styles.dropdownText, { color: theme.text }]}>🟢 {t('active')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.dropdownItem, { borderBottomColor: theme.border }]} onPress={() => { setMenuVisible(false); handleAction('en_attente', t('pending')); }}>
+                <TouchableOpacity style={[styles.dropdownItem, { borderBottomColor: theme.border }]} onPress={() => handleAction('en_attente', t('pending'))}>
                   <Text style={[styles.dropdownText, { color: theme.text }]}>🟡 {t('pending')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.dropdownItem, { borderBottomColor: theme.border }]} onPress={() => { setMenuVisible(false); handleAction('returned', t('returned')); }}>
+                <TouchableOpacity style={[styles.dropdownItem, { borderBottomColor: theme.border }]} onPress={() => handleAction('returned', t('returned'))}>
                   <Text style={[styles.dropdownText, { color: theme.text }]}>🔴 {t('returned')}</Text>
                 </TouchableOpacity>
               </View>
@@ -115,97 +113,80 @@ const ItemDetails = ({ route, navigation }) => {
         )}
       </View>
 
-      {/* Main Content ScrollView */}
       <ScrollView
         style={[styles.scrollView, { backgroundColor: theme.background }]}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        bounces={false}
       >
-        {/* Header Image as first scroll item */}
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={() => item.photo && setFullScreenImage(true)}
+          onPress={() => currentItem.photo && setFullScreenImage(true)}
           style={styles.imageContainer}
         >
-          {item.photo ? (
-            <Image source={{ uri: item.photo }} style={styles.image} resizeMode="cover" />
+          {currentItem.photo ? (
+            <Image source={{ uri: currentItem.photo }} style={styles.image} resizeMode="cover" />
           ) : (
-            <View style={[styles.placeholder, { backgroundColor: item.type === 'lost' ? '#e74c3c' : '#3498db' }]}>
-              <Text style={styles.placeholderIcon}>{item.type === 'lost' ? '🔍' : '📦'}</Text>
+            <View style={[styles.placeholder, { backgroundColor: currentItem.type === 'lost' ? '#e74c3c' : '#3498db' }]}>
+              <Text style={styles.placeholderIcon}>{currentItem.type === 'lost' ? '🔍' : '📦'}</Text>
             </View>
           )}
         </TouchableOpacity>
 
-        {/* Content Sheet Overlapping Image */}
         <View style={[styles.contentSheet, { backgroundColor: theme.surface }]}>
           <View style={[styles.handleBar, { backgroundColor: theme.border }]} />
 
           <View style={styles.headerRow}>
-            <View style={[styles.badge, { backgroundColor: item.type === 'lost' ? '#e74c3c' : '#3498db' }]}>
-              <Text style={styles.badgeText}>{item.type === 'lost' ? t('lost').toUpperCase() : t('found').toUpperCase()}</Text>
+            <View style={[styles.badge, { backgroundColor: currentItem.type === 'lost' ? '#e74c3c' : '#3498db' }]}>
+              <Text style={styles.badgeText}>{currentItem.type === 'lost' ? t('lost').toUpperCase() : t('found').toUpperCase()}</Text>
             </View>
-            <Text style={styles.date}>{new Date(item.date).toLocaleDateString()}</Text>
+            <Text style={[styles.date, { color: theme.textSecondary }]}>{new Date(currentItem.date).toLocaleDateString()}</Text>
           </View>
 
-          <Text style={[styles.title, { color: theme.text }]}>{item.title}</Text>
+          <Text style={[styles.title, { color: theme.text }]}>{currentItem.title}</Text>
 
           <View style={styles.locationRow}>
             <Text style={styles.locationIcon}>📍</Text>
-            <Text style={[styles.locationText, { color: theme.textSecondary }]}>{item.location}</Text>
+            <Text style={[styles.locationText, { color: theme.textSecondary }]}>{currentItem.location}</Text>
           </View>
 
-          {/* User Profile Link */}
           <TouchableOpacity
             style={[styles.userRow, { backgroundColor: theme.background, borderColor: theme.border }]}
-            onPress={() => navigation.navigate('UserProfile', { userId: item.userId })}
+            onPress={() => navigation.navigate('UserProfile', { userId: currentItem.userId })}
           >
-            <Text style={styles.userLabel}>👤 {t('postedBy') || 'Publié par'}</Text>
+            <Text style={[styles.userLabel, { color: theme.textSecondary }]}>👤 {t('postedBy')}</Text>
             <Text style={[styles.userName, { color: theme.primary }]}>Voir le profil →</Text>
           </TouchableOpacity>
 
           <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
           <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('description')}</Text>
-          <Text style={[styles.description, { color: theme.textSecondary }]}>{item.description}</Text>
-
-          {/* ... */}
+          <Text style={[styles.description, { color: theme.textSecondary }]}>{currentItem.description}</Text>
 
           <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Position Approximative</Text>
           <View style={[styles.mapPlaceholder, { backgroundColor: theme.background, borderColor: theme.border }]}>
-            <TouchableOpacity
-              style={styles.mapButton}
-              onPress={() => setShowMap(true)}
-            >
+            <TouchableOpacity style={styles.mapButton} onPress={() => setShowMap(true)}>
               <Text style={styles.mapButtonText}>🗺️ Display item location on map</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Action Buttons */}
           <View style={styles.actionContainer}>
             {user ? (
               <>
                 {!isOwner ? (
                   <TouchableOpacity style={styles.primaryButton} onPress={handleChat}>
-                    <Text style={styles.primaryButtonText}>
-                      {t('contactOwner')}
-                    </Text>
+                    <Text style={styles.primaryButtonText}>{t('contactOwner')}</Text>
                   </TouchableOpacity>
                 ) : (
                   <View style={styles.ownerActions}>
                     <TouchableOpacity style={styles.primaryButton} onPress={handleChat}>
-                      <Text style={styles.primaryButtonText}>
-                        {t('viewMessages')}
-                      </Text>
+                      <Text style={styles.primaryButtonText}>{t('viewMessages')}</Text>
                     </TouchableOpacity>
-
                     <View style={styles.ownerButtonsRow}>
                       <TouchableOpacity style={[styles.actionButton, styles.editButton]} onPress={handleEdit}>
                         <Text style={styles.actionButtonText}>{t('edit')}</Text>
                       </TouchableOpacity>
-
                       <TouchableOpacity style={[styles.actionButton, styles.deleteButton]} onPress={handleDelete}>
                         <Text style={[styles.actionButtonText, styles.deleteButtonText]}>{t('delete')}</Text>
                       </TouchableOpacity>
@@ -215,364 +196,26 @@ const ItemDetails = ({ route, navigation }) => {
               </>
             ) : (
               <View style={[styles.loginPromptContainer, { backgroundColor: theme.background }]}>
-                <Text style={styles.loginPrompt}>Connectez-vous pour interagir</Text>
+                <Text style={[styles.loginPrompt, { color: theme.textSecondary }]}>Connectez-vous pour interagir</Text>
               </View>
             )}
           </View>
-
-          {/* Padding for bottom safety */}
           <View style={{ height: 40 }} />
         </View>
       </ScrollView>
 
-      <MapDisplay
-        visible={showMap}
-        onClose={() => setShowMap(false)}
-        item={item}
-      />
+      <MapDisplay visible={showMap} onClose={() => setShowMap(false)} item={currentItem} />
 
-      {/* Full Screen Image Modal */}
-      <Modal
-        visible={fullScreenImage}
-        transparent={true}
-        onRequestClose={() => setFullScreenImage(false)}
-        animationType="fade"
-      >
+      <Modal visible={fullScreenImage} transparent={true} onRequestClose={() => setFullScreenImage(false)}>
         <View style={styles.fullScreenContainer}>
-          <TouchableOpacity
-            style={styles.fullScreenCloseButton}
-            onPress={() => setFullScreenImage(false)}
-          >
+          <TouchableOpacity style={styles.fullScreenCloseButton} onPress={() => setFullScreenImage(false)}>
             <Text style={styles.fullScreenCloseText}>✕</Text>
           </TouchableOpacity>
-          {item.photo &&
-            <Image
-              source={{ uri: item.photo }}
-              style={styles.fullScreenImage}
-              resizeMode="contain"
-            />
-          }
+          {currentItem.photo && <Image source={{ uri: currentItem.photo }} style={styles.fullScreenImage} resizeMode="contain" />}
         </View>
       </Modal>
-
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  scrollView: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  scrollContent: {
-    paddingBottom: 0,
-  },
-  imageContainer: {
-    width: '100%',
-    height: IMAGE_HEIGHT,
-    backgroundColor: '#eee',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  placeholder: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  placeholderIcon: {
-    fontSize: 80,
-  },
-  topBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100, // Ensure buttons are clickable
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 40 : 30,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backButtonText: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: -2,
-  },
-  menuWrapper: {
-    // Positioning handled by topRow flex
-  },
-  statusMenuButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    elevation: 6,
-  },
-  statusMenuText: {
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    marginRight: 6,
-    fontSize: 14,
-  },
-  chevron: {
-    fontSize: 12,
-    color: '#7f8c8d',
-  },
-  dropdown: {
-    position: 'absolute',
-    top: 50,
-    right: 0,
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 5,
-    width: 150,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  dropdownItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f1f1',
-  },
-  dropdownText: {
-    fontSize: 14,
-    color: '#34495e',
-    fontWeight: '500',
-  },
-  contentSheet: {
-    backgroundColor: '#fff',
-    marginTop: -40, // Negative margin for overlap
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    paddingHorizontal: 25,
-    paddingBottom: 20,
-    paddingTop: 10,
-    minHeight: height - IMAGE_HEIGHT + 40,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 10,
-  },
-  handleBar: {
-    width: 40,
-    height: 5,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 3,
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  badge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  badgeText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 12,
-    letterSpacing: 1,
-  },
-  date: {
-    color: '#95a5a6',
-    fontSize: 14,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    marginBottom: 10,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  locationIcon: {
-    fontSize: 18,
-    marginRight: 8,
-  },
-  locationText: {
-    fontSize: 16,
-    color: '#7f8c8d',
-    fontWeight: '500',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#f1f1f1',
-    marginVertical: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#34495e',
-    marginBottom: 10,
-  },
-  description: {
-    fontSize: 16,
-    color: '#7f8c8d',
-    lineHeight: 24,
-  },
-  mapPlaceholder: {
-    height: 80,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    marginTop: 10,
-  },
-  mapButton: {
-    backgroundColor: '#3498db',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  mapButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  actionContainer: {
-    marginTop: 30,
-  },
-  primaryButton: {
-    backgroundColor: '#3498db',
-    paddingVertical: 18,
-    borderRadius: 15,
-    alignItems: 'center',
-    shadowColor: '#3498db',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-    marginBottom: 15,
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
-  },
-  ownerActions: {
-    gap: 15,
-  },
-  ownerButtonsRow: {
-    flexDirection: 'row',
-    gap: 15,
-  },
-  actionButton: {
-    flex: 1,
-    paddingVertical: 15,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  editButton: {
-    backgroundColor: '#e3f2fd',
-    borderColor: '#3498db',
-  },
-  deleteButton: {
-    backgroundColor: '#feeced',
-    borderColor: '#e74c3c',
-  },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#3498db',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  deleteButtonText: {
-    color: '#e74c3c',
-  },
-  loginPromptContainer: {
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 10,
-  },
-  loginPrompt: {
-    color: '#7f8c8d',
-    fontStyle: 'italic',
-  },
-  fullScreenContainer: {
-    flex: 1,
-    backgroundColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fullScreenImage: {
-    width: '100%',
-    height: '100%',
-  },
-  fullScreenCloseButton: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    zIndex: 20,
-    padding: 10,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 20,
-  },
-  fullScreenCloseText: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  userRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 20,
-    borderWidth: 1,
-  },
-  userLabel: {
-    fontSize: 16,
-    color: '#7f8c8d',
-    fontWeight: '500',
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-});
-
-export default ItemDetails;
+// ... gardez vos styles identiques à ceux fournis précédemment

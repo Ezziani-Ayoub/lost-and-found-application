@@ -82,33 +82,37 @@ export const ChatsProvider = ({ children }) => {
   };
 
   // Envoyer un message
-  const sendMessage = async (chatId, messageText) => {
-    if (!user || !messageText.trim()) return;
+  const sendMessage = async (chatId, messageText, isSystemMessage = false) => {
+    if ((!user || !messageText.trim()) && !isSystemMessage) return null;
 
     try {
       const messageData = {
         chatId: chatId,
-        senderId: user.uid,
+        senderId: isSystemMessage ? 'system' : user.uid,
         text: messageText.trim(),
         createdAt: new Date().toISOString(),
-        read: false
+        read: false,
+        isSystemMessage: isSystemMessage
       };
 
       // Ajouter le message
       const messageRef = await addDoc(collection(db, 'messages'), messageData);
 
-      // Mettre à jour le chat avec le dernier message
-      const chatRef = doc(db, 'chats', chatId);
-      await updateDoc(chatRef, {
-        lastMessage: messageText.trim(),
-        lastMessageAt: new Date().toISOString(),
-        lastMessageBy: user.uid
-      });
+      // Mettre à jour le chat avec le dernier message (sauf pour les messages système)
+      if (!isSystemMessage) {
+        const chatRef = doc(db, 'chats', chatId);
+        await updateDoc(chatRef, {
+          lastMessage: messageText.trim(),
+          lastMessageAt: new Date().toISOString(),
+          lastMessageBy: user.uid
+        });
+      }
 
-      console.log('✅ Message envoyé:', messageRef.id);
+      console.log(`✅ ${isSystemMessage ? 'Message système' : 'Message'} envoyé:`, messageRef.id);
       return messageRef.id;
     } catch (error) {
       console.error('❌ Erreur lors de l\'envoi du message:', error);
+      return null;
     }
   };
 
@@ -142,21 +146,35 @@ export const ChatsProvider = ({ children }) => {
     if (!user || !chatId) return;
 
     try {
-      const messagesQuery = query(
+      // D'abord, on récupère tous les messages non lus du chat
+      const unreadMessagesQuery = query(
         collection(db, 'messages'),
         where('chatId', '==', chatId),
-        where('senderId', '!=', user.uid),
         where('read', '==', false)
       );
 
-      const querySnapshot = await getDocs(messagesQuery);
+      const querySnapshot = await getDocs(unreadMessagesQuery);
       
-      const batch = querySnapshot.docs.map(doc => 
-        updateDoc(doc.ref, { read: true, readAt: new Date().toISOString() })
-      );
+      // Puis on filtre côté client pour ne garder que ceux qui ne sont pas de l'utilisateur actuel
+      // et qui ne sont pas des messages système
+      const batch = [];
+      
+      querySnapshot.forEach((doc) => {
+        const message = doc.data();
+        if (message.senderId !== user.uid && !message.isSystemMessage) {
+          batch.push(
+            updateDoc(doc.ref, { 
+              read: true, 
+              readAt: new Date().toISOString() 
+            })
+          );
+        }
+      });
 
-      await Promise.all(batch);
-      console.log('✅ Messages marqués comme lus');
+      if (batch.length > 0) {
+        await Promise.all(batch);
+        console.log(`✅ ${batch.length} messages marqués comme lus`);
+      }
     } catch (error) {
       console.error('❌ Erreur lors du marquage des messages:', error);
     }
