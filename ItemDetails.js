@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, ScrollView, Dimensions, Platform, Modal } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Image, StyleSheet, TouchableOpacity, Alert, ScrollView, Dimensions, Platform, Modal, ActivityIndicator } from 'react-native';
 import { useItems } from './ItemsContext';
 import { useAuth } from './AuthContext';
 import { StatusBar } from 'expo-status-bar';
@@ -9,23 +9,33 @@ const { width, height } = Dimensions.get('window');
 const IMAGE_HEIGHT = 400;
 
 const ItemDetails = ({ route, navigation }) => {
-  const { item } = route.params;
-  const { updateItem, deleteItem } = useItems();
+  const { item: initialItem } = route.params; // Initial fallback
+  const { items, updateItem, deleteItem, loading: itemsLoading } = useItems();
   const { user } = useAuth();
+
   const [loading, setLoading] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [fullScreenImage, setFullScreenImage] = useState(false);
 
-  // If item or user is missing (e.g. after deletion or logout), handle gracefully
-  if (!item) return null;
+  // Rechercher l'item mis à jour dans le contexte
+  const currentItem = items.find(i => i.id === initialItem.id) || initialItem;
 
-  const isOwner = user && item.userId === user.uid;
+  // Vérifier si l'item existe encore (s'il a été supprimé, il ne sera plus dans items et on pourrait vouloir rediriger)
+  const itemExists = !!items.find(i => i.id === initialItem.id);
 
-  const handleAction = (action, statusLabel) => {
-    updateItem(item.id, { status: action });
-    Alert.alert('Succès', `Objet marqué comme ${statusLabel}!`);
-    navigation.goBack();
+  // Si l'item n'existe plus dans le contexte (après suppression), on peut gérer ça.
+  // Mais ici on utilise || initialItem pour éviter crash immédiat avant le goBack.
+
+  const isOwner = user && currentItem?.userId === user.uid;
+
+  const handleAction = async (action, statusLabel) => {
+    try {
+      await updateItem(currentItem.id, { status: action });
+      Alert.alert('Succès', `Objet marqué comme ${statusLabel}!`);
+    } catch (e) {
+      Alert.alert('Erreur', 'Mise à jour échouée');
+    }
   };
 
   const handleChat = () => {
@@ -35,9 +45,9 @@ const ItemDetails = ({ route, navigation }) => {
     }
 
     try {
-      const otherUserId = isOwner ? null : item.userId;
+      const otherUserId = isOwner ? null : currentItem.userId;
       navigation.navigate('Chat', {
-        item,
+        item: currentItem,
         otherUserId: otherUserId || 'pending',
       });
     } catch (error) {
@@ -46,7 +56,7 @@ const ItemDetails = ({ route, navigation }) => {
   };
 
   const handleEdit = () => {
-    navigation.navigate('PostItem', { item });
+    navigation.navigate('PostItem', { item: currentItem });
   };
 
   const handleDelete = () => {
@@ -60,9 +70,9 @@ const ItemDetails = ({ route, navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await deleteItem(item.id);
+              await deleteItem(currentItem.id);
               Alert.alert('Supprimé', 'Votre annonce a été supprimée.');
-              navigation.goBack();
+              navigation.navigate('MainTabs', { screen: 'Acceuil' });
             } catch (error) {
               Alert.alert('Erreur', 'Impossible de supprimer l\'annonce.');
             }
@@ -71,6 +81,8 @@ const ItemDetails = ({ route, navigation }) => {
       ]
     );
   };
+
+  if (!currentItem) return null;
 
   return (
     <View style={styles.container}>
@@ -89,7 +101,7 @@ const ItemDetails = ({ route, navigation }) => {
               onPress={() => setMenuVisible(!menuVisible)}
             >
               <Text style={styles.statusMenuText}>
-                {item.status === 'actif' ? 'Actif' : item.status === 'en_attente' ? 'En Pause' : 'Remis'}
+                {currentItem.status === 'actif' ? 'Actif' : currentItem.status === 'en_attente' ? 'En Pause' : 'Remis'}
               </Text>
               <Text style={styles.chevron}>▼</Text>
             </TouchableOpacity>
@@ -121,14 +133,14 @@ const ItemDetails = ({ route, navigation }) => {
         {/* Header Image as first scroll item */}
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={() => item.photo && setFullScreenImage(true)}
+          onPress={() => currentItem.photo && setFullScreenImage(true)}
           style={styles.imageContainer}
         >
-          {item.photo ? (
-            <Image source={{ uri: item.photo }} style={styles.image} resizeMode="cover" />
+          {currentItem.photo ? (
+            <Image source={{ uri: currentItem.photo }} style={styles.image} resizeMode="cover" />
           ) : (
-            <View style={[styles.placeholder, { backgroundColor: item.type === 'lost' ? '#e74c3c' : '#3498db' }]}>
-              <Text style={styles.placeholderIcon}>{item.type === 'lost' ? '🔍' : '📦'}</Text>
+            <View style={[styles.placeholder, { backgroundColor: currentItem.type === 'lost' ? '#e74c3c' : '#3498db' }]}>
+              <Text style={styles.placeholderIcon}>{currentItem.type === 'lost' ? '🔍' : '📦'}</Text>
             </View>
           )}
         </TouchableOpacity>
@@ -138,23 +150,23 @@ const ItemDetails = ({ route, navigation }) => {
           <View style={styles.handleBar} />
 
           <View style={styles.headerRow}>
-            <View style={[styles.badge, { backgroundColor: item.type === 'lost' ? '#e74c3c' : '#3498db' }]}>
-              <Text style={styles.badgeText}>{item.type === 'lost' ? 'PERDU' : 'TROUVÉ'}</Text>
+            <View style={[styles.badge, { backgroundColor: currentItem.type === 'lost' ? '#e74c3c' : '#3498db' }]}>
+              <Text style={styles.badgeText}>{currentItem.type === 'lost' ? 'PERDU' : 'TROUVÉ'}</Text>
             </View>
-            <Text style={styles.date}>{new Date(item.date).toLocaleDateString()}</Text>
+            <Text style={styles.date}>{new Date(currentItem.date).toLocaleDateString()}</Text>
           </View>
 
-          <Text style={styles.title}>{item.title}</Text>
+          <Text style={styles.title}>{currentItem.title}</Text>
 
           <View style={styles.locationRow}>
             <Text style={styles.locationIcon}>📍</Text>
-            <Text style={styles.locationText}>{item.location}</Text>
+            <Text style={styles.locationText}>{currentItem.location}</Text>
           </View>
 
           <View style={styles.divider} />
 
           <Text style={styles.sectionTitle}>Description</Text>
-          <Text style={styles.description}>{item.description}</Text>
+          <Text style={styles.description}>{currentItem.description}</Text>
 
           <View style={styles.divider} />
 
@@ -194,6 +206,7 @@ const ItemDetails = ({ route, navigation }) => {
                       <TouchableOpacity style={[styles.actionButton, styles.deleteButton]} onPress={handleDelete}>
                         <Text style={[styles.actionButtonText, styles.deleteButtonText]}>Supprimer</Text>
                       </TouchableOpacity>
+
                     </View>
                   </View>
                 )}
@@ -213,7 +226,7 @@ const ItemDetails = ({ route, navigation }) => {
       <MapDisplay
         visible={showMap}
         onClose={() => setShowMap(false)}
-        item={item}
+        item={currentItem}
       />
 
       {/* Full Screen Image Modal */}
@@ -230,9 +243,9 @@ const ItemDetails = ({ route, navigation }) => {
           >
             <Text style={styles.fullScreenCloseText}>✕</Text>
           </TouchableOpacity>
-          {item.photo &&
+          {currentItem.photo &&
             <Image
-              source={{ uri: item.photo }}
+              source={{ uri: currentItem.photo }}
               style={styles.fullScreenImage}
               resizeMode="contain"
             />
