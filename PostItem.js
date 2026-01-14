@@ -6,6 +6,8 @@ import { useTheme } from './ThemeContext';
 import { useLanguage } from './LanguageContext';
 import LocationPicker from './components/LocationPicker';
 import * as ImagePicker from 'expo-image-picker';
+import { COUNTRIES } from './constants/Countries';
+import { Modal, FlatList } from 'react-native';
 
 const PostItem = ({ navigation, route }) => {
   const { addItem, updateItem } = useItems();
@@ -20,8 +22,11 @@ const PostItem = ({ navigation, route }) => {
   const [title, setTitle] = useState(editItem?.title || '');
   const [description, setDescription] = useState(editItem?.description || '');
   const [location, setLocation] = useState(editItem?.location || '');
+  const [country, setCountry] = useState(editItem?.country || '');
+  const [city, setCity] = useState(editItem?.city || '');
   const [coordinates, setCoordinates] = useState(editItem?.coordinates || null);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [category, setCategory] = useState(editItem?.category || 'autre');
   const [status, setStatus] = useState(editItem?.status || 'actif');
   const [type, setType] = useState(editItem?.type || 'lost');
@@ -62,14 +67,14 @@ const PostItem = ({ navigation, route }) => {
 
   const convertToBase64 = async (uri) => {
     if (!uri) return null;
-    
+
     try {
       console.log('🔄 Conversion photo en base64:', uri);
-      
+
       const response = await fetch(uri);
       const blob = await response.blob();
       console.log('📦 Blob créé, taille:', blob.size);
-      
+
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
@@ -92,8 +97,8 @@ const PostItem = ({ navigation, route }) => {
       Alert.alert(t('error'), 'Vous devez être connecté pour publier.');
       return;
     }
-    if (!title || !description || !location) {
-      Alert.alert('Incomplet', 'Veuillez remplir le titre, la description et le lieu.');
+    if (!title || !description || !country || !city) {
+      Alert.alert('Incomplet', 'Veuillez remplir le titre, la description, le pays et la ville.');
       return;
     }
 
@@ -109,7 +114,10 @@ const PostItem = ({ navigation, route }) => {
         title,
         description,
         photo: photoData,
-        location,
+        country,
+        city,
+        // Legacy support or formatted string
+        location: `${city}, ${country}`,
         coordinates,
         category,
         status,
@@ -207,22 +215,49 @@ const PostItem = ({ navigation, route }) => {
             textAlignVertical="top"
           />
 
-          <TextInput
-            style={[styles.input, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
-            value={location}
-            onChangeText={setLocation}
-            placeholder={t('location')}
-            placeholderTextColor="#95a5a6"
-          />
+          {/* Country Selection */}
+          <View style={{ marginBottom: 15 }}>
+            <Text style={{ marginBottom: 5, color: theme.text, fontWeight: '600' }}>Pays</Text>
+            <TouchableOpacity
+              style={[styles.input, { backgroundColor: theme.surface, borderColor: theme.border, justifyContent: 'center' }]}
+              onPress={() => setShowCountryPicker(true)}
+            >
+              <Text style={{ color: country ? theme.text : '#95a5a6' }}>{country || 'Sélectionner un pays'}</Text>
+            </TouchableOpacity>
+          </View>
 
-          <TouchableOpacity
-            style={styles.mapButton}
-            onPress={() => setShowLocationPicker(true)}
-          >
-            <Text style={styles.mapButtonText}>
-              {coordinates ? '📍 Position sélectionnée (Modifier)' : '🗺️ Sélectionner sur la carte'}
-            </Text>
-          </TouchableOpacity>
+          {/* City Input */}
+          <View style={{ marginBottom: 15 }}>
+            <Text style={{ marginBottom: 5, color: theme.text, fontWeight: '600' }}>Ville</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: theme.surface, color: theme.text, borderColor: theme.border }]}
+              value={city}
+              onChangeText={setCity}
+              placeholder="Entrez la ville"
+              placeholderTextColor="#95a5a6"
+            />
+          </View>
+
+          {/* Location Map Selection */}
+          <Text style={[styles.sectionLabel, { color: theme.text }]}>Position précise</Text>
+          <View style={{ marginBottom: 20 }}>
+            <TouchableOpacity
+              style={[styles.mapButton, { backgroundColor: theme.surface, borderColor: theme.primary, borderWidth: 1 }]}
+              onPress={() => setShowLocationPicker(true)}
+            >
+              <Text style={{ fontSize: 20, marginRight: 10 }}>🗺️</Text>
+              <View>
+                <Text style={{ color: theme.primary, fontWeight: 'bold' }}>
+                  {coordinates ? 'Position définie (Modifier)' : 'Sélectionner sur la carte'}
+                </Text>
+                {coordinates && (
+                  <Text style={{ color: theme.textSecondary, fontSize: 12 }}>
+                    {coordinates.latitude.toFixed(4)}, {coordinates.longitude.toFixed(4)}
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          </View>
 
           {/* Category Selection */}
           <Text style={[styles.sectionLabel, { color: theme.text }]}>Catégorie</Text>
@@ -254,17 +289,48 @@ const PostItem = ({ navigation, route }) => {
 
       <LocationPicker
         visible={showLocationPicker}
+        country={country}
+        city={city}
         onClose={() => setShowLocationPicker(false)}
         onLocationSelect={(coords) => {
           setCoordinates(coords);
-          // Auto-fill location text if empty? Logic can be refined.
-          if (!location) {
-            // Reverse geocoding could go here if we had it.
-            setLocation(`Position: ${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`);
-          }
         }}
         initialLocation={coordinates}
       />
+
+      <Modal
+        visible={showCountryPicker}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCountryPicker(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ width: '80%', height: '70%', backgroundColor: theme.surface, borderRadius: 20, padding: 20 }}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 20, color: theme.text, textAlign: 'center' }}>Sélectionner un Pays</Text>
+            <FlatList
+              data={COUNTRIES}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={{ padding: 15, borderBottomWidth: 1, borderBottomColor: theme.border }}
+                  onPress={() => {
+                    setCountry(item);
+                    setShowCountryPicker(false);
+                  }}
+                >
+                  <Text style={{ fontSize: 16, color: theme.text }}>{item}</Text>
+                </TouchableOpacity>
+              )}
+            />
+            <TouchableOpacity
+              style={{ marginTop: 20, padding: 15, backgroundColor: '#e74c3c', borderRadius: 10, alignItems: 'center' }}
+              onPress={() => setShowCountryPicker(false)}
+            >
+              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Annuler</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };

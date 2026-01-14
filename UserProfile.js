@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Image, ActivityIndicator, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useUsers } from './UsersContext';
+import { useAuth } from './AuthContext';
 import { useItems } from './ItemsContext';
 import { useTheme } from './ThemeContext';
 import { useLanguage } from './LanguageContext';
@@ -8,7 +9,8 @@ import ItemCard from './components/ItemCard';
 
 const UserProfile = ({ route, navigation }) => {
     const { userId } = route.params;
-    const { getUserById, loading: usersLoading } = useUsers();
+    const { user: currentUser } = useAuth(); // Rename to avoid conflict if any, though we only use it for admin check
+    const { getUserById, banUser, unbanUser, loading: usersLoading, users } = useUsers(); // Get users object to check current role
     const { items, loading: itemsLoading } = useItems();
     const { theme } = useTheme();
     const { t } = useLanguage();
@@ -19,7 +21,59 @@ const UserProfile = ({ route, navigation }) => {
             const user = getUserById(userId);
             setUserProfile(user);
         }
-    }, [userId, getUserById]);
+    }, [userId, getUserById, users]); // Add users dependency to refresh if profile updates (e.g. gets banned)
+
+    // Check if current logged in user is admin
+    const isAdmin = currentUser && users[currentUser.uid]?.role === 'admin';
+    const isSelf = currentUser && currentUser.uid === userId;
+
+    const handleBan = async (type) => {
+        try {
+            await banUser(userId, type);
+            // Refresh local profile state is handled by users context update
+        } catch (error) {
+            Alert.alert('Erreur', 'Erreur lors du bannissement');
+        }
+    };
+
+    const handleUnban = async () => {
+        try {
+            await unbanUser(userId);
+        } catch (error) {
+            Alert.alert('Erreur', 'Erreur lors du débannissement');
+        }
+    };
+
+    const adminControls = () => {
+        if (!isAdmin || isSelf) return null;
+
+        return (
+            <View style={[styles.adminSection, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Text style={[styles.adminTitle, { color: theme.text }]}>🛠️ Administration</Text>
+
+                {userProfile.isBanned ? (
+                    <TouchableOpacity style={[styles.adminButton, { backgroundColor: '#2ecc71' }]} onPress={handleUnban}>
+                        <Text style={styles.adminButtonText}>✅ Débannir l'utilisateur</Text>
+                    </TouchableOpacity>
+                ) : (
+                    <View style={styles.adminButtonsRow}>
+                        <TouchableOpacity
+                            style={[styles.adminButton, { backgroundColor: '#e74c3c', flex: 1, marginRight: 8 }]}
+                            onPress={() => handleBan('permanent')}
+                        >
+                            <Text style={styles.adminButtonText}>🚫 Bannir (Permanent)</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.adminButton, { backgroundColor: '#f39c12', flex: 1, marginLeft: 8 }]}
+                            onPress={() => handleBan('temporary')}
+                        >
+                            <Text style={styles.adminButtonText}>⏳ Bannir (Temporaire)</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </View>
+        );
+    };
 
     if (usersLoading || !userProfile) {
         return (
@@ -53,7 +107,13 @@ const UserProfile = ({ route, navigation }) => {
                 <Text style={[styles.status, { color: userProfile.isOnline ? '#2ecc71' : theme.textSecondary }]}>
                     {userProfile.isOnline ? 'En ligne' : 'Hors ligne'}
                 </Text>
+                {userProfile.isBanned && (
+                    <Text style={[styles.bannedTag, { color: '#e74c3c' }]}>🚫 COMPTE SUSPENDU</Text>
+                )}
             </View>
+
+            {/* Admin Controls */}
+            {adminControls()}
 
             <View style={styles.infoSection}>
                 <View style={[styles.infoItem, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
@@ -191,6 +251,44 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: 20,
         fontStyle: 'italic',
+    },
+    bannedTag: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        marginTop: 5,
+        borderWidth: 1,
+        borderColor: '#e74c3c',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 4,
+    },
+    adminSection: {
+        marginHorizontal: 20,
+        marginTop: 20,
+        padding: 15,
+        borderRadius: 12,
+        borderWidth: 1,
+    },
+    adminTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginBottom: 15,
+    },
+    adminButtonsRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    adminButton: {
+        paddingVertical: 12,
+        paddingHorizontal: 15,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    adminButtonText: {
+        color: '#fff',
+        fontWeight: 'bold',
+        fontSize: 14,
     }
 });
 

@@ -9,9 +9,11 @@ import { deleteUser } from 'firebase/auth';
 
 const Settings = ({ navigation }) => {
   const { user, logout } = useAuth();
-  const { setUserOffline } = useUsers();
+  const { setUserOffline, users } = useUsers();
   const { theme, toggleTheme, isDarkMode } = useTheme();
   const { t } = useLanguage();
+
+  const isAdmin = user && users[user.uid]?.role === 'admin';
 
   const handleDeleteAccount = () => {
     Alert.alert(t('deleteAccount'), 'Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.', [
@@ -73,6 +75,13 @@ const Settings = ({ navigation }) => {
       <TouchableOpacity style={[styles.item, { borderBottomColor: theme.border }]} onPress={() => navigation.navigate('Notifications')}>
         <Text style={{ color: theme.text }}>{t('notifications')}</Text>
       </TouchableOpacity>
+
+      {isAdmin && (
+        <TouchableOpacity style={[styles.item, { borderBottomColor: theme.border }]} onPress={() => navigation.navigate('BannedUsers')}>
+          <Text style={{ color: '#e74c3c', fontWeight: 'bold' }}>🚫 Utilisateurs Bannis</Text>
+        </TouchableOpacity>
+      )}
+
       <TouchableOpacity style={[styles.item, { borderBottomColor: theme.border }]} onPress={handleDeleteAccount}>
         <Text style={{ color: 'red' }}>{t('deleteAccount')}</Text>
       </TouchableOpacity>
