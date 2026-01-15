@@ -15,7 +15,7 @@ import { useChats } from './ChatsContext';
 import { useItems } from './ItemsContext';
 
 const ChatScreen = ({ route, navigation }) => {
-  const { item: initialItem, otherUserId } = route.params;
+  const { item: initialItem, otherUserId, chatId: initialChatId } = route.params;
   const { user } = useAuth();
   const {
     chats,
@@ -23,7 +23,8 @@ const ChatScreen = ({ route, navigation }) => {
     sendMessage,
     loadMessages,
     markMessagesAsRead,
-    getMessages
+    getMessages,
+    loading: chatsLoading
   } = useChats();
 
   // Use useItems to get reactive item status
@@ -33,13 +34,34 @@ const ChatScreen = ({ route, navigation }) => {
   const itemStatus = currentItem.status || 'actif';
 
   const [messageText, setMessageText] = useState('');
-  const [currentChatId, setCurrentChatId] = useState(null);
+  const [currentChatId, setCurrentChatId] = useState(initialChatId || null); // Initialize with initialChatId if provided
   const [isLoading, setIsLoading] = useState(true);
   const flatListRef = useRef(null);
 
   // Trouver le chat existant ou préparer
   useEffect(() => {
-    if (!user || !chats) return;
+    // If we already have a chatId from route params, we don't need to search for it.
+    // We just need to ensure it's set and then load messages.
+    if (initialChatId && currentChatId === initialChatId) {
+      console.log(`✅ Chat ID initial fourni: ${initialChatId}. Pas besoin de chercher.`);
+      setIsLoading(false);
+      return;
+    }
+
+    // Si les chats sont encore en chargement, on attend
+    if (chatsLoading) {
+      console.log('⏳ Chargement des chats en cours...');
+      return;
+    }
+
+    // Si pas d'utilisateur ou pas de chats (et pas en chargement), on arrête
+    if (!user || !chats) {
+      console.log('⚠️ Pas de user ou pas de chats chargés');
+      setIsLoading(false);
+      return;
+    }
+
+    console.log(`🔍 Recherche de chat pour Item: ${currentItem.id} avec ${otherUserId}. Chats disponibles:`, chats.map(c => ({ id: c.id, itemId: c.itemId, participants: c.participants })));
 
     const existingChat = chats.find(c =>
       c.itemId === currentItem.id &&
@@ -48,16 +70,23 @@ const ChatScreen = ({ route, navigation }) => {
     );
 
     if (existingChat) {
+      console.log('✅ Chat existant trouvé:', existingChat.id);
       setCurrentChatId(existingChat.id);
+    } else {
+      console.log('⚪ Aucun chat existant trouvé, prêt à créer.');
     }
+
+    // Une fois qu'on a cherché, on arrête de charger localement
     setIsLoading(false);
-  }, [user, chats, currentItem.id, otherUserId]);
+  }, [user, chats, currentItem.id, otherUserId, chatsLoading, initialChatId, currentChatId]); // Added initialChatId and currentChatId to dependencies
 
   // Charger les messages quand on a un ID de chat
   useEffect(() => {
     if (currentChatId) {
+      console.log('📩 Abonnement aux messages du chat:', currentChatId);
       const unsubscribe = loadMessages(currentChatId);
       markMessagesAsRead(currentChatId);
+
       return () => {
         if (unsubscribe && typeof unsubscribe === 'function') {
           unsubscribe();

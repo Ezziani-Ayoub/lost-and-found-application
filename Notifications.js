@@ -26,7 +26,7 @@ const Notifications = ({ navigation }) => {
     const item = items.find(i => i.id === chat.itemId);
 
     if (item && otherUserId) {
-      navigation.navigate('Chat', { item, otherUserId });
+      navigation.navigate('Chat', { item, otherUserId, chatId: chat.id });
     } else {
       // Fallback si l'item n'existe plus
       alert('Cet objet n\'existe plus');

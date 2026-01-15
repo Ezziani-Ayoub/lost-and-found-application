@@ -35,15 +35,16 @@ export const ChatsProvider = ({ children }) => {
     // - Champ: lastMessageAt (descendant)
     const chatsQuery = query(
       collection(db, 'chats'),
-      where('participants', 'array-contains', user.uid),
-      orderBy('lastMessageAt', 'desc')
+      where('participants', 'array-contains', user.uid)
+      // orderBy removed to avoid index requirement
     );
 
     const unsubscribe = onSnapshot(chatsQuery, (snapshot) => {
       const chatsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      })).sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
+
       setChats(chatsData);
       setLoading(false);
     }, (error) => {
