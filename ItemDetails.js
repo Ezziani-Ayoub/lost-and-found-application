@@ -46,9 +46,17 @@ const ItemDetails = ({ route, navigation }) => {
       Alert.alert(t('error'), 'Connectez-vous pour contacter le propriétaire.');
       return;
     }
+
+    // Si c'est le propriétaire, il veut voir ses messages (donc la liste des conversations)
+    if (isOwner) {
+      navigation.navigate('Notifications');
+      return;
+    }
+
+    // Si c'est un autre utilisateur, il veut discuter avec le propriétaire
     navigation.navigate('Chat', {
       item: currentItem,
-      otherUserId: isOwner ? null : currentItem.userId,
+      otherUserId: currentItem.userId,
     });
   };
 
