@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, FlatList, TouchableOpacity, Text, ActivityIndicator, Image } from 'react-native';
+import { useChats } from './ChatsContext';
 import { useItems } from './ItemsContext';
 import { useAuth } from './AuthContext';
 import { useTheme } from './ThemeContext';
 import { useLanguage } from './LanguageContext';
+
 import { StatusBar } from 'expo-status-bar';
 import ItemCard from './components/ItemCard';
 import Filters from './components/Filters';
@@ -15,6 +17,8 @@ const HomeScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
   const { theme, isDarkMode } = useTheme();
   const { t } = useLanguage();
+  const chatContext = useChats();
+  const totalUnreadCount = chatContext?.totalUnreadCount || 0;
 
   const [type, setType] = useState('all');
   const [category, setCategory] = useState('all');
@@ -70,6 +74,28 @@ const HomeScreen = ({ navigation }) => {
       <View style={[styles.header, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <Text style={[styles.headerTitle, { color: theme.primary }]}>{t('homeTitle')}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+
+          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.settingsButton}>
+            <View>
+              <Text style={styles.settingsIcon}>✉️</Text>
+              {totalUnreadCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -5,
+                  right: -5,
+                  backgroundColor: 'red',
+                  borderRadius: 10,
+                  width: 20,
+                  height: 20,
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}>
+                  <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>{totalUnreadCount}</Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+
           <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.settingsButton}>
             <Text style={styles.settingsIcon}>⚙️</Text>
           </TouchableOpacity>
