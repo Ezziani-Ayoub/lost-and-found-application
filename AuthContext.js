@@ -6,7 +6,7 @@ import {
   onAuthStateChanged
 } from 'firebase/auth';
 import { db } from './firebaseConfig';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { auth } from './firebaseConfig';
 
 const AuthContext = createContext();
@@ -46,7 +46,23 @@ export const AuthProvider = ({ children }) => {
     });
 
     return unsubscribe;
+    return unsubscribe;
   }, []);
+
+  // Listen for real-time ban updates
+  useEffect(() => {
+    if (user) {
+      const userRef = doc(db, 'users', user.uid);
+      const unsubscribe = onSnapshot(userRef, (docSnap) => {
+        if (docSnap.exists() && docSnap.data().isBanned) {
+          console.log('🚫 User is banned (real-time), forcing logout');
+          signOut(auth);
+          setUser(null);
+        }
+      });
+      return () => unsubscribe();
+    }
+  }, [user]);
 
   const login = async (email, password) => {
     try {

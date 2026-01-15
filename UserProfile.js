@@ -28,15 +28,39 @@ const UserProfile = ({ route, navigation }) => {
     const isSelf = currentUser && currentUser.uid === userId;
 
     const handleBan = async (type) => {
-        try {
-            await banUser(userId, type);
-            // Refresh local profile state is handled by users context update
-        } catch (error) {
-            Alert.alert('Erreur', 'Erreur lors du bannissement');
+        if (type === 'permanent') {
+            Alert.alert(
+                'Confirmer le bannissement',
+                'Êtes-vous sûr de vouloir bannir cet utilisateur définitivement ? Cette action est irréversible.',
+                [
+                    { text: 'Annuler', style: 'cancel' },
+                    {
+                        text: 'Confirmer',
+                        style: 'destructive',
+                        onPress: async () => {
+                            try {
+                                await banUser(userId, type);
+                            } catch (error) {
+                                Alert.alert('Erreur', 'Erreur lors du bannissement');
+                            }
+                        }
+                    }
+                ]
+            );
+        } else {
+            try {
+                await banUser(userId, type);
+            } catch (error) {
+                Alert.alert('Erreur', 'Erreur lors du bannissement');
+            }
         }
     };
 
     const handleUnban = async () => {
+        if (userProfile.banType === 'permanent') {
+            Alert.alert('Action Impossible', 'Impossible de débannir un utilisateur banni définitivement.');
+            return;
+        }
         try {
             await unbanUser(userId);
         } catch (error) {
