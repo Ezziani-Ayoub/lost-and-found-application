@@ -20,9 +20,14 @@ console.log('Configuration Firebase:', firebaseConfig);
 const app = initializeApp(firebaseConfig);
 console.log('Firebase initialisé:', app);
 
-// 2. Initialiser l'authentification
-const auth = getAuth(app);
-console.log('Auth initialisé:', auth);
+// 2. Initialiser l'authentification avec persistance
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
+
+const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(AsyncStorage)
+});
+console.log('Auth initialisé avec persistance:', auth);
 
 // 3. Initialiser la base de données Firestore
 const db = getFirestore(app);

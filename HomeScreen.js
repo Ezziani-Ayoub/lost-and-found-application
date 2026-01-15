@@ -77,7 +77,7 @@ const HomeScreen = ({ navigation }) => {
 
           <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.settingsButton}>
             <View>
-              <Text style={styles.settingsIcon}>✉️</Text>
+              <Text style={styles.settingsIcon}>💬</Text>
               {totalUnreadCount > 0 && (
                 <View style={{
                   position: 'absolute',
