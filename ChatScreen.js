@@ -12,11 +12,10 @@ import {
 } from 'react-native';
 import { useAuth } from './AuthContext';
 import { useChats } from './ChatsContext';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from './firebaseConfig';
+import { useItems } from './ItemsContext';
 
 const ChatScreen = ({ route, navigation }) => {
-  const { item, otherUserId } = route.params;
+  const { item: initialItem, otherUserId } = route.params;
   const { user } = useAuth();
   const {
     chats,
@@ -26,8 +25,12 @@ const ChatScreen = ({ route, navigation }) => {
     markMessagesAsRead,
     getMessages
   } = useChats();
-  
-  const [itemStatus, setItemStatus] = useState(item.status || 'pending');
+
+  // Use useItems to get reactive item status
+  const { items, updateItem } = useItems();
+
+  const currentItem = items ? (items.find(i => i.id === initialItem.id) || initialItem) : initialItem;
+  const itemStatus = currentItem.status || 'actif';
 
   const [messageText, setMessageText] = useState('');
   const [currentChatId, setCurrentChatId] = useState(null);
@@ -39,7 +42,7 @@ const ChatScreen = ({ route, navigation }) => {
     if (!user || !chats) return;
 
     const existingChat = chats.find(c =>
-      c.itemId === item.id &&
+      c.itemId === currentItem.id &&
       c.participants.includes(user.uid) &&
       c.participants.includes(otherUserId)
     );
@@ -48,7 +51,7 @@ const ChatScreen = ({ route, navigation }) => {
       setCurrentChatId(existingChat.id);
     }
     setIsLoading(false);
-  }, [user, chats, item.id, otherUserId]);
+  }, [user, chats, currentItem.id, otherUserId]);
 
   // Charger les messages quand on a un ID de chat
   useEffect(() => {
@@ -66,83 +69,52 @@ const ChatScreen = ({ route, navigation }) => {
   const messages = currentChatId ? getMessages(currentChatId) : [];
 
   const handleMarkAsResolved = async () => {
-    console.log('handleMarkAsResolved appelé', { user, itemStatus, item });
-    
     if (!user) {
       alert('Vous devez être connecté pour effectuer cette action');
       return;
     }
-    
+
     if (itemStatus === 'resolved') {
       alert('Cet objet est déjà marqué comme résolu');
       return;
     }
-    
+
+    // Vérifier si l'utilisateur est le propriétaire
+    const isOwner = currentItem.userId === user.uid;
+
+    if (!isOwner) {
+      alert('Seul le propriétaire peut marquer cet objet comme résolu');
+      return;
+    }
+
     try {
-      console.log('Tentative de marquage comme résolu pour l\'item:', {
-        itemId: item.id,
-        currentUser: user.uid,
-        itemOwner: item.userId || item.ownerId // Vérifiez la propriété correcte
-      });
-      
-      // Vérifier si l'utilisateur est le propriétaire
-      const isOwner = item.userId === user.uid || item.ownerId === user.uid;
-      if (!isOwner) {
-        alert('Seul le propriétaire peut marquer cet objet comme résolu');
-        return;
-      }
-      
-      // Mettre à jour l'état local immédiatement pour un retour visuel instantané
-      setItemStatus('resolved');
-      
-      // Mettre à jour l'élément dans Firestore
-      console.log('Mise à jour du document dans Firestore...');
-      const itemRef = doc(db, 'items', item.id);
-      const updateData = {
+      // Utilisation de updateItem du context
+      await updateItem(currentItem.id, {
         status: 'resolved',
-        updatedAt: new Date().toISOString()
-      };
-      
-      // Ajouter les champs optionnels s'ils existent
-      if (user.uid) updateData.resolvedBy = user.uid;
-      
-      console.log('Données de mise à jour:', updateData);
-      
-      await updateDoc(itemRef, updateData);
-      console.log('Mise à jour Firestore réussie');
-      
+        resolvedBy: user.uid,
+        resolvedAt: new Date().toISOString()
+      });
+
       // Envoyer un message système
       if (currentChatId) {
         try {
           await sendMessage(
-            currentChatId, 
-            `${user.displayName || 'Un utilisateur'} a marqué cet objet comme résolu.`,
+            currentChatId,
+            `${user.displayName || 'Le propriétaire'} a marqué cet objet comme résolu.`,
             true // isSystemMessage
           );
-          console.log('Message système envoyé avec succès');
         } catch (msgError) {
           console.error('Erreur lors de l\'envoi du message système:', msgError);
-          // On ne bloque pas le flux pour une erreur de message système
         }
       }
-      
-      // Mettre à jour le titre de l'écran
+
       navigation.setOptions({
-        headerTitle: `[RÉSOLU] ${item.title}`
+        headerTitle: `[RÉSOLU] ${currentItem.title}`
       });
-      
-      // Rafraîchir la liste des chats si nécessaire
-      // Vous pourriez vouloir ajouter un callback ou un événement ici
-      
+
     } catch (error) {
-      // En cas d'erreur, on remet le statut précédent
-      setItemStatus(item.status || 'pending');
-      console.error('Erreur détaillée:', {
-        message: error.message,
-        code: error.code,
-        stack: error.stack
-      });
-      alert(`Erreur: ${error.message || 'Impossible de marquer comme résolu'}`);
+      console.error('Erreur:', error);
+      alert('Impossible de marquer comme résolu');
     }
   };
 
@@ -157,18 +129,16 @@ const ChatScreen = ({ route, navigation }) => {
 
       if (!chatId) {
         // Premier message : on crée le chat
-        chatId = await createChat(otherUserId, item.id);
+        chatId = await createChat(otherUserId, currentItem.id);
         if (chatId) {
           setCurrentChatId(chatId);
         } else {
-          // Erreur de création
           return;
         }
       }
 
       await sendMessage(chatId, textToSend);
 
-      // Scroll to bottom
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
@@ -225,6 +195,9 @@ const ChatScreen = ({ route, navigation }) => {
     );
   }
 
+  // Determine button state
+  const isOwner = user && currentItem.userId === user.uid;
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -233,23 +206,21 @@ const ChatScreen = ({ route, navigation }) => {
     >
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>
+          <Text style={styles.headerTitle} numberOfLines={1}>
             {itemStatus === 'resolved' ? `[RÉSOLU] ` : ''}
-            {item.title}
+            {currentItem.title}
           </Text>
           {itemStatus !== 'resolved' ? (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
                 styles.resolveButton,
-                (!user || (item.userId !== user?.uid && item.ownerId !== user?.uid)) && styles.resolveButtonDisabled
+                !isOwner && styles.resolveButtonDisabled
               ]}
               onPress={handleMarkAsResolved}
-              disabled={!user || (item.userId !== user?.uid && item.ownerId !== user?.uid)}
+              disabled={!isOwner}
             >
               <Text style={styles.resolveButtonText}>
-                {(!user || (item.userId !== user?.uid && item.ownerId !== user?.uid)) 
-                  ? 'Réservé au propriétaire' 
-                  : 'Marquer comme résolu'}
+                {!isOwner ? 'Propriétaire' : 'Marquer résolu'}
               </Text>
             </TouchableOpacity>
           ) : (
