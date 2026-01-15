@@ -9,7 +9,7 @@ import { deleteUser } from 'firebase/auth';
 
 const Settings = ({ navigation }) => {
   const { user, logout } = useAuth();
-  const { setUserOffline, users } = useUsers();
+  const { setUserOffline, users, updateUserProfile } = useUsers();
   const { theme, toggleTheme, isDarkMode } = useTheme();
   const { t } = useLanguage();
 
@@ -72,9 +72,17 @@ const Settings = ({ navigation }) => {
       <TouchableOpacity style={[styles.item, { borderBottomColor: theme.border }]} onPress={() => navigation.navigate('FAQ')}>
         <Text style={{ color: theme.text }}>{t('faq')}</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={[styles.item, { borderBottomColor: theme.border }]} onPress={() => navigation.navigate('Notifications')}>
+      <View style={[styles.item, { borderBottomColor: theme.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
         <Text style={{ color: theme.text }}>{t('notifications')}</Text>
-      </TouchableOpacity>
+        <Switch
+          value={users[user?.uid]?.notificationsEnabled ?? true}
+          onValueChange={(val) => {
+            if (user) updateUserProfile(user.uid, { notificationsEnabled: val });
+          }}
+          trackColor={{ false: "#767577", true: "#81b0ff" }}
+          thumbColor={users[user?.uid]?.notificationsEnabled ? "#f5dd4b" : "#f4f3f4"}
+        />
+      </View>
 
       {isAdmin && (
         <TouchableOpacity style={[styles.item, { borderBottomColor: theme.border }]} onPress={() => navigation.navigate('BannedUsers')}>
