@@ -9,14 +9,21 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  SafeAreaView,
+  Image
 } from 'react-native';
 import { useAuth } from './AuthContext';
 import { useChats } from './ChatsContext';
 import { useItems } from './ItemsContext';
+import { useUsers } from './UsersContext';
+import { useTheme } from './ThemeContext';
 
 const ChatScreen = ({ route, navigation }) => {
   const { item: initialItem, otherUserId, chatId: initialChatId } = route.params;
   const { user } = useAuth();
+  const { getUserById } = useUsers();
+  const { theme, isDarkMode } = useTheme();
+
   const {
     chats,
     createChat,
@@ -27,41 +34,65 @@ const ChatScreen = ({ route, navigation }) => {
     loading: chatsLoading
   } = useChats();
 
-  // Use useItems to get reactive item status
   const { items, updateItem } = useItems();
-
   const currentItem = items ? (items.find(i => i.id === initialItem.id) || initialItem) : initialItem;
   const itemStatus = currentItem.status || 'actif';
+  const otherUser = getUserById(otherUserId);
 
   const [messageText, setMessageText] = useState('');
-  const [currentChatId, setCurrentChatId] = useState(initialChatId || null); // Initialize with initialChatId if provided
+  const [currentChatId, setCurrentChatId] = useState(initialChatId || null);
   const [isLoading, setIsLoading] = useState(true);
   const flatListRef = useRef(null);
 
-  // Trouver le chat existant ou préparer
+  // Mettre à jour le header avec les infos de l'utilisateur
   useEffect(() => {
-    // If we already have a chatId from route params, we don't need to search for it.
-    // We just need to ensure it's set and then load messages.
+    const displayName = otherUser?.displayName || 'Utilisateur';
+    const isOnline = otherUser?.isOnline;
+
+    // Header Style based on theme
+    const headerBackgroundColor = theme.surface;
+    const headerTextColor = theme.text;
+    const headerBorderColor = theme.border;
+
+    navigation.setOptions({
+      headerTitle: () => (
+        <TouchableOpacity
+          style={styles.headerTitleContainer}
+          onPress={() => navigation.navigate('UserProfile', { userId: otherUserId })}
+        >
+          <View>
+            <Text style={[styles.headerName, { color: headerTextColor }]}>{displayName}</Text>
+            <Text style={[styles.headerStatus, { color: isOnline ? '#2ecc71' : '#7f8c8d' }]}>
+              {isOnline ? 'En ligne' : 'Hors ligne'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      ),
+      headerBackTitleVisible: false,
+      headerStyle: {
+        backgroundColor: headerBackgroundColor,
+        shadowColor: 'transparent',
+        elevation: 0,
+        borderBottomWidth: 1,
+        borderBottomColor: headerBorderColor,
+        height: 100,
+      },
+      headerTintColor: theme.primary,
+    });
+  }, [navigation, otherUser, theme, isDarkMode]);
+
+  useEffect(() => {
     if (initialChatId && currentChatId === initialChatId) {
-      console.log(`✅ Chat ID initial fourni: ${initialChatId}. Pas besoin de chercher.`);
       setIsLoading(false);
       return;
     }
 
-    // Si les chats sont encore en chargement, on attend
-    if (chatsLoading) {
-      console.log('⏳ Chargement des chats en cours...');
-      return;
-    }
+    if (chatsLoading) return;
 
-    // Si pas d'utilisateur ou pas de chats (et pas en chargement), on arrête
     if (!user || !chats) {
-      console.log('⚠️ Pas de user ou pas de chats chargés');
       setIsLoading(false);
       return;
     }
-
-    console.log(`🔍 Recherche de chat pour Item: ${currentItem.id} avec ${otherUserId}. Chats disponibles:`, chats.map(c => ({ id: c.id, itemId: c.itemId, participants: c.participants })));
 
     const existingChat = chats.find(c =>
       c.itemId === currentItem.id &&
@@ -70,194 +101,120 @@ const ChatScreen = ({ route, navigation }) => {
     );
 
     if (existingChat) {
-      console.log('✅ Chat existant trouvé:', existingChat.id);
       setCurrentChatId(existingChat.id);
-    } else {
-      console.log('⚪ Aucun chat existant trouvé, prêt à créer.');
     }
-
-    // Une fois qu'on a cherché, on arrête de charger localement
     setIsLoading(false);
-  }, [user, chats, currentItem.id, otherUserId, chatsLoading, initialChatId, currentChatId]); // Added initialChatId and currentChatId to dependencies
+  }, [user, chats, currentItem.id, otherUserId, chatsLoading, initialChatId, currentChatId]);
 
-  // Charger les messages quand on a un ID de chat
   useEffect(() => {
     if (currentChatId) {
-      console.log('📩 Abonnement aux messages du chat:', currentChatId);
       const unsubscribe = loadMessages(currentChatId);
       markMessagesAsRead(currentChatId);
-
-      return () => {
-        if (unsubscribe && typeof unsubscribe === 'function') {
-          unsubscribe();
-        }
-      };
+      return () => unsubscribe && unsubscribe();
     }
   }, [currentChatId]);
 
   const messages = currentChatId ? getMessages(currentChatId) : [];
 
   const handleMarkAsResolved = async () => {
-    if (!user) {
-      alert('Vous devez être connecté pour effectuer cette action');
-      return;
-    }
-
-    if (itemStatus === 'resolved') {
-      alert('Cet objet est déjà marqué comme résolu');
-      return;
-    }
-
-    // Vérifier si l'utilisateur est le propriétaire
-    const isOwner = currentItem.userId === user.uid;
-
-    if (!isOwner) {
+    if (!user || itemStatus === 'resolved') return;
+    if (currentItem.userId !== user.uid) {
       alert('Seul le propriétaire peut marquer cet objet comme résolu');
       return;
     }
 
     try {
-      // Utilisation de updateItem du context
       await updateItem(currentItem.id, {
         status: 'resolved',
         resolvedBy: user.uid,
         resolvedAt: new Date().toISOString()
       });
 
-      // Envoyer un message système
       if (currentChatId) {
-        try {
-          await sendMessage(
-            currentChatId,
-            `${user.displayName || 'Le propriétaire'} a marqué cet objet comme résolu.`,
-            true // isSystemMessage
-          );
-        } catch (msgError) {
-          console.error('Erreur lors de l\'envoi du message système:', msgError);
-        }
+        await sendMessage(currentChatId, `${user.displayName || 'Le propriétaire'} a marqué cet objet comme résolu.`, true);
       }
-
-      navigation.setOptions({
-        headerTitle: `[RÉSOLU] ${currentItem.title}`
-      });
-
     } catch (error) {
-      console.error('Erreur:', error);
-      alert('Impossible de marquer comme résolu');
+      console.error(error);
+      alert('Erreur lors de la mise à jour.');
     }
   };
 
   const handleSendMessage = async () => {
     if (!messageText.trim() || !user) return;
-
     const textToSend = messageText.trim();
-    setMessageText(''); // Optimistic clear
+    setMessageText('');
 
     try {
       let chatId = currentChatId;
-
       if (!chatId) {
-        // Premier message : on crée le chat
         chatId = await createChat(otherUserId, currentItem.id);
-        if (chatId) {
-          setCurrentChatId(chatId);
-        } else {
-          return;
-        }
+        if (chatId) setCurrentChatId(chatId);
+        else return;
       }
-
       await sendMessage(chatId, textToSend);
-
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-
     } catch (error) {
-      console.error("Erreur d'envoi", error);
-      setMessageText(textToSend); // Restore message if error
+      console.error(error);
+      setMessageText(textToSend);
     }
   };
 
   const renderMessage = ({ item: message }) => {
     const isMyMessage = message.senderId === user?.uid;
-    const isSystemMessage = message.isSystemMessage;
 
-    if (isSystemMessage) {
+    if (message.isSystemMessage) {
       return (
-        <View style={styles.systemMessageContainer}>
-          <Text style={styles.systemMessageText}>{message.text}</Text>
-          <Text style={styles.systemMessageTime}>
-            {new Date(message.createdAt).toLocaleTimeString('fr-FR', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </Text>
+        <View style={[styles.systemMessageContainer, { backgroundColor: theme.surfaceUnique || '#f8f9fa', borderColor: theme.border }]}>
+          <Text style={[styles.systemMessageText, { color: theme.textSecondary }]}>{message.text}</Text>
         </View>
       );
     }
 
     return (
-      <View
-        style={[
-          styles.messageContainer,
-          isMyMessage ? styles.myMessage : styles.otherMessage,
-        ]}
-      >
-        <Text style={[styles.messageText, isMyMessage && styles.myMessageText]}>
+      <View style={[
+        styles.messageBubble,
+        isMyMessage
+          ? { backgroundColor: theme.primary }
+          : { backgroundColor: isDarkMode ? '#333' : '#f1f1f1' },
+        isMyMessage ? styles.myMessage : styles.otherMessage
+      ]}>
+        <Text style={[
+          styles.messageText,
+          isMyMessage ? styles.myMessageText : { color: theme.text }
+        ]}>
           {message.text}
         </Text>
-        <Text style={[styles.messageTime, isMyMessage && styles.myMessageTime]}>
-          {new Date(message.createdAt || message.timestamp).toLocaleTimeString('fr-FR', {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
+        <Text style={[
+          styles.messageTime,
+          isMyMessage ? styles.myMessageTime : { color: theme.textSecondary }
+        ]}>
+          {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </Text>
       </View>
     );
   };
 
+  const isOwner = user && currentItem.userId === user.uid;
+
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007bff" />
+      <View style={[styles.loadingContainer, { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
 
-  // Determine button state
-  const isOwner = user && currentItem.userId === user.uid;
-
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={90}
-    >
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {itemStatus === 'resolved' ? `[RÉSOLU] ` : ''}
-            {currentItem.title}
-          </Text>
-          {itemStatus !== 'resolved' ? (
-            <TouchableOpacity
-              style={[
-                styles.resolveButton,
-                !isOwner && styles.resolveButtonDisabled
-              ]}
-              onPress={handleMarkAsResolved}
-              disabled={!isOwner}
-            >
-              <Text style={styles.resolveButtonText}>
-                {!isOwner ? 'Propriétaire' : 'Marquer résolu'}
-              </Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.resolvedBadge}>
-              <Text style={styles.resolvedText}>Résolu</Text>
-            </View>
-          )}
-        </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Item Context Header */}
+      <View style={[styles.contextBar, { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
+        <Text style={[styles.contextText, { color: theme.textSecondary }]}>
+          {itemStatus === 'resolved' ? '✅ Objet Résolu' : `Concernant : ${currentItem.title}`}
+        </Text>
+        {isOwner && itemStatus !== 'resolved' && (
+          <TouchableOpacity onPress={handleMarkAsResolved} style={[styles.resolveLink, { backgroundColor: isDarkMode ? 'rgba(46, 204, 113, 0.2)' : '#eafaf1' }]}>
+            <Text style={styles.resolveLinkText}>Marquer résolu</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <FlatList
@@ -269,188 +226,190 @@ const ChatScreen = ({ route, navigation }) => {
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Aucun message. Dites bonjour ! 👋</Text>
+            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>Dites bonjour 👋</Text>
           </View>
         }
       />
 
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.textInput}
-          value={messageText}
-          onChangeText={setMessageText}
-          placeholder="Écrire un message..."
-          multiline
-        />
-        <TouchableOpacity
-          style={[styles.sendButton, !messageText.trim() && styles.sendButtonDisabled]}
-          onPress={handleSendMessage}
-          disabled={!messageText.trim()}
-        >
-          <Text style={styles.sendButtonText}>Envoyer</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        style={styles.inputWrapper}
+      >
+        <View style={[styles.inputContainer, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
+          <TextInput
+            style={[styles.textInput, {
+              backgroundColor: isDarkMode ? '#2c2c2c' : '#f8f9fa',
+              color: theme.text,
+              borderColor: theme.border
+            }]}
+            value={messageText}
+            onChangeText={setMessageText}
+            placeholder="Écrivez votre message..."
+            placeholderTextColor={theme.textSecondary}
+            multiline
+          />
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              { backgroundColor: theme.primary },
+              !messageText.trim() && styles.sendButtonDisabled
+            ]}
+            onPress={handleSendMessage}
+            disabled={!messageText.trim()}
+          >
+            <Text style={styles.sendIcon}>➤</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  headerContent: {
+  headerTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    marginLeft: -10,
   },
-  headerTitle: {
+
+  headerName: {
     fontSize: 16,
+    fontWeight: '700',
+  },
+  headerStatus: {
+    fontSize: 12,
+    color: '#2ecc71',
+    fontWeight: '500',
+  },
+  contextBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+  },
+  contextText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  resolveLink: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  resolveLinkText: {
+    color: '#2ecc71',
+    fontSize: 12,
     fontWeight: 'bold',
-    flex: 1,
-    marginRight: 10,
-  },
-  resolveButton: {
-    backgroundColor: '#28a745',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
-    opacity: 1,
-  },
-  resolveButtonDisabled: {
-    backgroundColor: '#6c757d',
-    opacity: 0.7,
-  },
-  resolveButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  resolvedBadge: {
-    backgroundColor: '#e9ecef',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
-  },
-  resolvedText: {
-    color: '#6c757d',
-    fontSize: 12,
-    fontWeight: '600',
   },
   messagesList: {
-    padding: 10,
+    paddingHorizontal: 15,
     paddingBottom: 20,
+    paddingTop: 15,
   },
-  messageContainer: {
+  messageBubble: {
     maxWidth: '75%',
-    padding: 10,
-    borderRadius: 10,
-    marginBottom: 10,
-  },
-  systemMessageContainer: {
-    alignSelf: 'center',
-    backgroundColor: '#e9ecef',
-    padding: 8,
-    borderRadius: 15,
-    marginVertical: 5,
-    maxWidth: '90%',
-  },
-  systemMessageText: {
-    fontSize: 12,
-    color: '#6c757d',
-    textAlign: 'center',
-  },
-  systemMessageTime: {
-    fontSize: 10,
-    color: '#adb5bd',
-    textAlign: 'center',
-    marginTop: 2,
+    padding: 12,
+    borderRadius: 20,
+    marginBottom: 8,
   },
   myMessage: {
     alignSelf: 'flex-end',
-    backgroundColor: '#007bff',
-    borderBottomRightRadius: 2,
+    borderBottomRightRadius: 4,
   },
   otherMessage: {
     alignSelf: 'flex-start',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderBottomLeftRadius: 2,
+    borderBottomLeftRadius: 4,
   },
   messageText: {
     fontSize: 16,
-    color: '#000',
-    marginBottom: 4,
+    lineHeight: 22,
   },
   myMessageText: {
     color: '#fff',
   },
   messageTime: {
-    fontSize: 11,
-    color: '#666',
+    fontSize: 10,
+    marginTop: 4,
     alignSelf: 'flex-end',
   },
   myMessageTime: {
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(255,255,255,0.7)',
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 40,
-    marginTop: 50,
+  systemMessageContainer: {
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginVertical: 10,
   },
-  emptyText: {
-    color: '#999',
-    fontSize: 14,
+  systemMessageText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  inputWrapper: {
+    width: '100%',
   },
   inputContainer: {
     flexDirection: 'row',
-    padding: 10,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
     alignItems: 'flex-end',
+    padding: 10,
+    paddingBottom: Platform.OS === 'ios' ? 10 : 10,
+    borderTopWidth: 1,
   },
   textInput: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    marginRight: 10,
+    borderRadius: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    paddingTop: 12,
     maxHeight: 100,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
+    borderWidth: 1,
+    marginRight: 10,
   },
   sendButton: {
-    backgroundColor: '#007bff',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   sendButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#bdc3c7',
+    shadowOpacity: 0,
+    elevation: 0,
   },
-  sendButtonText: {
+  sendIcon: {
     color: '#fff',
-    fontWeight: 'bold',
+    fontSize: 18,
+    marginLeft: 2,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    marginTop: 50,
+    opacity: 0.5,
+  },
+  emptyText: {
     fontSize: 16,
   },
 });
 
 export default ChatScreen;
+
