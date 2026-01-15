@@ -53,7 +53,7 @@ export const AuthProvider = ({ children }) => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       return userCredential.user;
     } catch (error) {
-      console.error('Erreur de connexion:', error);
+      console.log('Erreur de connexion:', error);
       throw error;
     }
   };
@@ -64,7 +64,7 @@ export const AuthProvider = ({ children }) => {
       // Vous pouvez ajouter les données supplémentaires dans Firestore ici
       return userCredential.user;
     } catch (error) {
-      console.error('Erreur d\'inscription:', error);
+      console.log('Erreur d\'inscription:', error);
       throw error;
     }
   };
