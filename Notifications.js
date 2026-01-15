@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Alert } from 'react-native';
 import { useChats } from './ChatsContext';
 import { useAuth } from './AuthContext';
 import { useItems } from './ItemsContext';
 import { StatusBar } from 'expo-status-bar';
 
 const Notifications = ({ navigation }) => {
-  const { chats, loading } = useChats();
+  const { chats, loading, deleteChat } = useChats();
   const { user } = useAuth();
   const { items } = useItems(); // Pour récupérer les titres des objets
 
@@ -33,6 +33,27 @@ const Notifications = ({ navigation }) => {
     }
   };
 
+  const handleDeleteChat = (chat) => {
+    Alert.alert(
+      'Supprimer la conversation',
+      'Êtes-vous sûr de vouloir supprimer cette conversation ? Tous les messages seront perdus.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteChat(chat.id);
+            } catch (error) {
+              Alert.alert('Erreur', 'Impossible de supprimer la conversation.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const renderItem = ({ item }) => {
     const unreadCount = getUnreadCount(item);
 
@@ -43,6 +64,7 @@ const Notifications = ({ navigation }) => {
           unreadCount > 0 && styles.unreadChatItem
         ]}
         onPress={() => handleChatPress(item)}
+        onLongPress={() => handleDeleteChat(item)}
       >
         <View style={styles.avatarContainer}>
           <Text style={styles.avatarText}>💬</Text>
