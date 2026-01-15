@@ -41,7 +41,7 @@ export const UsersProvider = ({ children }) => {
       setUsers(usersData);
       setLoading(false);
     }, (error) => {
-      console.error('Erreur lors du chargement des utilisateurs:', error);
+      console.log('Erreur lors du chargement des utilisateurs:', error);
       setLoading(false);
     });
 

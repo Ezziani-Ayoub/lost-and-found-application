@@ -48,7 +48,7 @@ export const ItemsProvider = ({ children }) => {
       setItems(itemsData);
       setLoading(false);
     }, (error) => {
-      console.error('❌ Erreur Firestore:', error.message);
+      console.log('❌ Erreur Firestore:', error.message);
       // Si l'erreur d'index revient ici, clique sur le nouveau lien généré dans la console
       setLoading(false);
     });
