@@ -23,6 +23,12 @@ export const ItemsProvider = ({ children }) => {
 
   // Charger les items depuis Firestore
   useEffect(() => {
+    if (!user) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
+
     console.log(' Connexion à Firestore...');
 
     // On utilise 'items' où sont vos données
