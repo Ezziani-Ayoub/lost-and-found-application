@@ -38,6 +38,10 @@ const Login = ({ navigation }) => {
         Alert.alert('Incomplet', 'Veuillez remplir tous les champs du profil.');
         return;
       }
+      if (password.length < 6) {
+        Alert.alert('Mot de passe trop court', 'Le mot de passe doit contenir au moins 6 caractères.');
+        return;
+      }
     }
 
     setLoading(true);
@@ -47,28 +51,8 @@ const Login = ({ navigation }) => {
       // Set persistence based on checkbox
       if (isLogin) {
         try {
-          // For React Native with initializeAuth(..., { persistence: getReactNativePersistence(AsyncStorage) }), 
-          // the default IS persistent. We only need to force inMemory if rememberMe is false.
-          // However, switching back from inMemory to persistent needs explicit handling if we want to toggle it.
-          // Since we don't have direct access to the 'ReactNativePersistence' object here easily without re-importing, 
-          // and browserLocalPersistence is for web, we might rely on the fact that we initialized it with storage.
-          // But 'setPersistence' expects a Persistence object.
-
-          // Actually, for RN, we usually just rely on the initialization. 
-          // If we want to NOT remember, we set inMemoryPersistence.
-          // If we want to remember, we should use the persistence mechanism we initialized with.
-          // But auth.setPersistence(inMemoryPersistence) works.
-          // To revert, getting the original persistence object is tricky if not exported.
-          // Let's rely on the user's intent: if rememberMe is false, we sign out on unmount or just use inMemory.
-
           if (!rememberMe) {
             await setPersistence(auth, inMemoryPersistence);
-          } else {
-            // We want standard persistence. 
-            // Since we configured it in firebaseConfig, it *should* be the default. 
-            // But if it was switched to inMemory previously, we need to switch back.
-            // We'll rely on reloading restoring the default for now, or assume this is a fresh session.
-            // Best practice: if you support toggling, you should export the persistence object from firebaseConfig.
           }
         } catch (pErr) {
           console.log("Persistence error:", pErr);
@@ -86,7 +70,6 @@ const Login = ({ navigation }) => {
         });
       }
 
-      // Check for ban status immediately after login
       // Check for ban status immediately after login
       if (firebaseUser) {
         const userRef = doc(db, 'users', firebaseUser.uid);
@@ -107,7 +90,19 @@ const Login = ({ navigation }) => {
 
     } catch (error) {
       console.error(error);
-      Alert.alert('Erreur', 'L\'authentification a échoué. Veuillez réessayer.');
+      let errorMessage = 'L\'authentification a échoué. Veuillez réessayer.';
+
+      if (error.code === 'auth/weak-password') {
+        errorMessage = 'Le mot de passe doit contenir au moins 6 caractères.';
+      } else if (error.code === 'auth/email-already-in-use') {
+        errorMessage = 'Cet email est déjà utilisé.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Format d\'email invalide.';
+      } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        errorMessage = 'Email ou mot de passe incorrect.';
+      }
+
+      Alert.alert('Erreur', errorMessage);
     } finally {
       setLoading(false);
     }
