@@ -1,14 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import { 
-  collection, 
-  addDoc, 
-  doc, 
-  updateDoc, 
-  deleteDoc, 
-  getDocs, 
-  query, 
-  where, 
+import {
+  collection,
+  addDoc,
+  doc,
+  updateDoc,
+  deleteDoc,
+  getDocs,
+  query,
+  where,
   orderBy,
   onSnapshot,
   getDoc,
@@ -101,10 +101,24 @@ export const ChatsProvider = ({ children }) => {
       // Mettre à jour le chat avec le dernier message (sauf pour les messages système)
       if (!isSystemMessage) {
         const chatRef = doc(db, 'chats', chatId);
+        const chatDoc = await getDoc(chatRef);
+        const chatData = chatDoc.data();
+
+        // Calculer les nouveaux compteurs non lus
+        const participants = chatData.participants || [];
+        const otherParticipants = participants.filter(id => id !== user.uid);
+        const newUnreadCount = { ...chatData.unreadCount };
+
+        // Incrémenter pour les autres
+        otherParticipants.forEach(pid => {
+          newUnreadCount[pid] = (newUnreadCount[pid] || 0) + 1;
+        });
+
         await updateDoc(chatRef, {
           lastMessage: messageText.trim(),
           lastMessageAt: new Date().toISOString(),
-          lastMessageBy: user.uid
+          lastMessageBy: user.uid,
+          unreadCount: newUnreadCount
         });
       }
 
@@ -117,7 +131,7 @@ export const ChatsProvider = ({ children }) => {
   };
 
   // Charger les messages d'un chat
-  const loadMessages = async (chatId) => {
+  const loadMessages = (chatId) => {
     if (!chatId) return;
 
     try {
@@ -146,7 +160,7 @@ export const ChatsProvider = ({ children }) => {
     if (!user || !chatId) return;
 
     try {
-      // D'abord, on récupère tous les messages non lus du chat
+      // 1. Marquer les documents messages comme lus
       const unreadMessagesQuery = query(
         collection(db, 'messages'),
         where('chatId', '==', chatId),
@@ -154,18 +168,15 @@ export const ChatsProvider = ({ children }) => {
       );
 
       const querySnapshot = await getDocs(unreadMessagesQuery);
-      
-      // Puis on filtre côté client pour ne garder que ceux qui ne sont pas de l'utilisateur actuel
-      // et qui ne sont pas des messages système
+
       const batch = [];
-      
       querySnapshot.forEach((doc) => {
         const message = doc.data();
         if (message.senderId !== user.uid && !message.isSystemMessage) {
           batch.push(
-            updateDoc(doc.ref, { 
-              read: true, 
-              readAt: new Date().toISOString() 
+            updateDoc(doc.ref, {
+              read: true,
+              readAt: new Date().toISOString()
             })
           );
         }
@@ -173,8 +184,24 @@ export const ChatsProvider = ({ children }) => {
 
       if (batch.length > 0) {
         await Promise.all(batch);
-        console.log(`✅ ${batch.length} messages marqués comme lus`);
       }
+
+      // 2. Réinitialiser le compteur dans le document Chat
+      const chatRef = doc(db, 'chats', chatId);
+      const chatDoc = await getDoc(chatRef);
+
+      if (chatDoc.exists()) {
+        const chatData = chatDoc.data();
+        const newUnreadCount = { ...chatData.unreadCount };
+
+        // Reset my count
+        if (newUnreadCount[user.uid] > 0) {
+          newUnreadCount[user.uid] = 0;
+          await updateDoc(chatRef, { unreadCount: newUnreadCount });
+          console.log('✅ Compteur de messages réinitialisé');
+        }
+      }
+
     } catch (error) {
       console.error('❌ Erreur lors du marquage des messages:', error);
     }
@@ -195,7 +222,7 @@ export const ChatsProvider = ({ children }) => {
 
       // Supprimer le chat
       await deleteDoc(doc(db, 'chats', chatId));
-      
+
       console.log('✅ Chat supprimé:', chatId);
     } catch (error) {
       console.error('❌ Erreur lors de la suppression du chat:', error);
@@ -212,6 +239,12 @@ export const ChatsProvider = ({ children }) => {
     return messages[chatId] || [];
   };
 
+  // Calculer le total des messages non lus
+  const totalUnreadCount = chats.reduce((acc, chat) => {
+    const count = (chat.unreadCount && chat.unreadCount[user?.uid]) || 0;
+    return acc + count;
+  }, 0);
+
   return (
     <ChatsContext.Provider value={{
       chats,
@@ -223,7 +256,8 @@ export const ChatsProvider = ({ children }) => {
       markMessagesAsRead,
       deleteChat,
       getChat,
-      getMessages
+      getMessages,
+      totalUnreadCount
     }}>
       {children}
     </ChatsContext.Provider>
