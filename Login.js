@@ -38,7 +38,7 @@ const Login = ({ navigation }) => {
         Alert.alert('Incomplet', 'Veuillez remplir tous les champs du profil.');
         return;
       }
-      if (password.length < 6) {
+      if (password.trim().length < 6) {
         Alert.alert('Mot de passe trop court', 'Le mot de passe doit contenir au moins 6 caractères.');
         return;
       }
@@ -89,7 +89,7 @@ const Login = ({ navigation }) => {
       }
 
     } catch (error) {
-      console.error(error);
+      console.log('Auth Error:', error.code, error.message); // Log instead of error to avoid RedBox
       let errorMessage = 'L\'authentification a échoué. Veuillez réessayer.';
 
       if (error.code === 'auth/weak-password') {
@@ -98,8 +98,10 @@ const Login = ({ navigation }) => {
         errorMessage = 'Cet email est déjà utilisé.';
       } else if (error.code === 'auth/invalid-email') {
         errorMessage = 'Format d\'email invalide.';
-      } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+      } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         errorMessage = 'Email ou mot de passe incorrect.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Trop de tentatives. Veuillez réessayer plus tard.';
       }
 
       Alert.alert('Erreur', errorMessage);

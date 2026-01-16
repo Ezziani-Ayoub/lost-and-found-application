@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Alert } from 'react-native';
 import { useAuth } from './AuthContext';
 import {
   collection,
@@ -71,7 +72,12 @@ export const ItemsProvider = ({ children }) => {
       });
       console.log('✅ Objet ajouté à la collection "items"');
     } catch (error) {
-      console.error('❌ Erreur ajout:', error.message);
+      console.log('❌ Erreur ajout:', error.message);
+      if (error.message.includes('longer than')) {
+        Alert.alert('Erreur', 'La photo sélectionnée est trop volumineuse pour être enregistrée. Veuillez choisir une photo plus petite.');
+      } else {
+        Alert.alert('Erreur', 'Impossible de publier l\'objet. Veuillez réessayer.');
+      }
     }
   };
 
